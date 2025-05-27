@@ -74,63 +74,148 @@ The build process has been updated:
 *   `bitnet.wasm` (WebAssembly module)
 
 **Key Available Functions (callable from JavaScript via `Module._functionName`):**
-*   `ggml_init`
-*   `ggml_bitnet_init`
-*   `ggml_bitnet_free`
-*   `ggml_nelements`
-*   `ggml_bitnet_transform_tensor` (**STUBBED** - see below)
-*   `ggml_bitnet_mul_mat_task_compute` (**STUBBED** - see below)
+*   `ggml_init` - Initialize the GGML library
+*   `ggml_bitnet_init` - Initialize BitNet-specific resources
+*   `ggml_bitnet_free` - Free BitNet-specific resources
+*   `ggml_nelements` - Get the number of elements in a tensor
+*   `ggml_bitnet_transform_tensor` - Transform a tensor using BitNet quantization
+*   `ggml_bitnet_mul_mat_task_compute` - Perform matrix multiplication with BitNet quantization
 *   Many other `ggml_*` functions (due to `EXPORT_ALL=1`).
 
-**Critical Limitations:**
-1.  **Core BitNet Functions are STUBBED:**
-    *   The essential C++ functions `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (defined in `src/ggml-bitnet-lut.cpp`) are currently **placeholders (stubs)**.
-    *   They were added to allow the project to compile and link successfully.
-    *   **These stubs DO NOT perform any actual BitNet computations.** They will not produce correct results for inference.
-2.  **No High-Level Inference API:**
-    *   There isn't a simple C or JavaScript API yet to load a model, prepare input, run inference, and get output.
+## Implementation Details
 
-**Conclusion:** The WASM module can be built, loaded, and basic initialization/stub functions can be called. However, **it CANNOT perform any meaningful BitNet inference in its current state.**
+### BitNet Core Functions
+
+The core BitNet functionality is implemented in `src/ggml-bitnet-lut.cpp` with the following key components:
+
+1. **Memory Management**:
+   * `ggml_bitnet_init()` - Allocates memory for lookup tables and other resources
+   * `ggml_bitnet_free()` - Frees allocated resources
+
+2. **Matrix Multiplication**:
+   * `ggml_bitnet_mul_mat_task_compute()` - Performs matrix multiplication with BitNet quantization
+   * Supports 2-bit quantization for weights (-1, 0, 1)
+   * Uses scaling factors for improved accuracy
+
+3. **Tensor Transformation**:
+   * `ggml_bitnet_transform_tensor()` - Transforms a tensor using BitNet quantization
+   * Quantizes floating-point values to 2-bit representation
+
+### JavaScript Integration
+
+The JavaScript integration is implemented in `example/main.js` with the following key components:
+
+1. **Memory Management**:
+   * Helper functions for allocating and freeing memory in the WASM heap
+   * Functions for transferring data between JavaScript and WASM
+
+2. **Matrix Operations**:
+   * Functions for parsing and creating matrices
+   * Implementation of matrix multiplication using BitNet functions
+
+3. **Model Loading**:
+   * Functions for loading a BitNet model from a GGUF file
+   * Memory management for the loaded model
+
+4. **User Interface**:
+   * Event handlers for the demo buttons
+   * Functions for displaying results
+
+**Current Implementation Status:**
+1.  **Core BitNet Functions:**
+    *   The essential C++ functions `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (defined in `src/ggml-bitnet-lut.cpp`) have been implemented with basic functionality.
+    *   These implementations support 2-bit quantization for weights (-1, 0, 1) and matrix multiplication with scaling factors.
+    *   The current implementation provides a foundation for BitNet operations but requires further optimization and testing.
+2.  **Basic Model Loading:**
+    *   The example now includes functionality to load a BitNet model in GGUF format.
+    *   The current implementation loads the model into memory but does not yet perform full inference with the model.
+3.  **Demonstration UI:**
+    *   The example UI has been updated to demonstrate matrix multiplication, tensor transformation, and model loading.
+
+**Conclusion:** The WASM module can be built, loaded, and basic BitNet operations can be performed. However, **full model inference requires additional work as outlined below.**
 
 ## Next Steps for Full Functionality
 
-To make this project fully capable of BitNet inference in WebAssembly, the following steps are crucial:
+While the core BitNet functions have been implemented and the example has been updated to demonstrate basic functionality, several key steps are still needed to achieve full model inference capabilities:
 
-1.  **Implement Core BitNet C++ Functions:**
-    *   The placeholder C++ implementations for `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (located in `src/ggml-bitnet-lut.cpp`) **MUST** be replaced with their correct algorithmic logic based on the BitNet paper and `ggml` integration. This is the most critical step.
+1.  **Complete the Model Inference Pipeline:**
+    *   **Implement Model Parsing:** Add functionality to parse the GGUF model format and extract weights, configuration, and vocabulary.
+    *   **Implement Tokenization:** Add a tokenizer to convert input text to token IDs that can be processed by the model.
+    *   **Implement Forward Pass:** Create a complete forward pass through the model's layers using the implemented BitNet operations.
+    *   **Implement Output Processing:** Add functionality to convert model output logits to tokens and then to text.
 
-2.  **Develop/Expose High-Level Inference API:**
-    *   Define and implement higher-level C/C++ functions that orchestrate the inference process. This would typically involve:
-        *   Loading a model (e.g., from a GGUF file if leveraging `llama.cpp`'s `ggml` loading capabilities).
-        *   Creating a `ggml_context` and managing `ggml_tensor` objects for weights, inputs, and computations.
-        *   Building a `ggml_cgraph` (computation graph) that uses the BitNet-specific functions and other `ggml` operations.
-        *   Executing the graph.
-        *   Providing functions to set input data and retrieve output data.
-    *   Ensure these high-level functions are exported for JavaScript access.
+2.  **Optimize BitNet Operations:**
+    *   **Performance Optimization:** Optimize the current BitNet operations for better performance in WebAssembly.
+    *   **Memory Management:** Improve memory management to handle larger models efficiently.
+    *   **SIMD Support:** Add SIMD (Single Instruction, Multiple Data) support for faster matrix operations where available.
+    *   **Quantization Improvements:** Extend the quantization support to handle different bit-widths and quantization schemes.
 
-3.  **Update JavaScript Example:**
-    *   Modify `example/main.js` to use the new high-level C/WASM API to:
-        *   Load a BitNet model.
-        *   Prepare sample input.
-        *   Run inference.
-        *   Display the results.
+3.  **Enhance JavaScript API:**
+    *   **Create High-Level API:** Develop a more user-friendly JavaScript API that abstracts the low-level WASM calls.
+    *   **Add Streaming Support:** Implement streaming for both input and output to handle long sequences.
+    *   **Add Progress Reporting:** Add callbacks for progress reporting during model loading and inference.
+    *   **Error Handling:** Improve error handling and reporting throughout the API.
 
-4.  **Model Preparation:**
-    *   Obtain or convert a BitNet model into a format compatible with the chosen loading mechanism (e.g., GGUF if using `ggml`'s standard model loading).
+4.  **Improve Model Support:**
+    *   **Model Configuration:** Add support for different model architectures and configurations.
+    *   **Model Conversion Tools:** Provide tools to convert models from other formats (e.g., PyTorch, Hugging Face) to the GGUF format.
+    *   **Model Compression:** Implement techniques to further compress models for web deployment.
 
-5.  **Thorough Testing:**
-    *   Verify the correctness of the implemented BitNet operations and the end-to-end inference pipeline against known test cases or reference implementations if available.
+5.  **Documentation and Examples:**
+    *   **API Documentation:** Create comprehensive documentation for the JavaScript API.
+    *   **Usage Examples:** Provide more examples demonstrating different use cases.
+    *   **Integration Guides:** Create guides for integrating with popular web frameworks.
+    *   **Performance Benchmarks:** Add benchmarks to help users understand performance characteristics.
+
+6.  **Testing and Validation:**
+    *   **Unit Tests:** Develop comprehensive unit tests for all components.
+    *   **Integration Tests:** Create integration tests for the full inference pipeline.
+    *   **Browser Compatibility:** Test across different browsers and devices.
+    *   **Validation Suite:** Develop a validation suite to compare outputs with reference implementations.
 
 ## Example Usage
 
-An example demonstrating how to load the module and call some of the available functions (including the STUBBED BitNet functions) is provided in the `example/` directory:
-*   `example/index.html`
-*   `example/main.js` (updated to reflect current status and call stubs)
+An example demonstrating how to use the BitNet WASM module is provided in the `example/` directory:
+*   `example/index.html` - The HTML interface with three demo sections:
+    * BitNet Model Inference Demo - Load a BitNet model and run simulated inference
+    * Matrix Multiplication Demo - Perform matrix multiplication with BitNet quantization
+    * Tensor Transformation Demo - Transform tensors using BitNet quantization
+*   `example/main.js` - The JavaScript code that interacts with the WASM module
 
-To run the example:
+### Running the Example
+
 1.  Ensure `bitnet.js` and `bitnet.wasm` are built using `./build.sh`.
-2.  Start a simple HTTP server in the `BitNet-wasm` root directory (e.g., `python3 -m http.server`).
-3.  Open `http://localhost:PORT/example/index.html` in your browser.
+2.  Download a BitNet model in GGUF format:
+    ```bash
+    # Create a models directory
+    mkdir -p models
+    
+    # Download a BitNet model from Hugging Face
+    # You can use the huggingface_hub Python package:
+    python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='microsoft/BitNet-b1.58-2B-4T-gguf', filename='ggml-model-i2_s.gguf', local_dir='models')"
+    ```
+3.  Start a simple HTTP server in the `BitNet-wasm` root directory:
+    ```bash
+    python -m http.server 8000
+    ```
+4.  Open `http://localhost:8000/example/index.html` in your browser.
 
-**Note:** This example primarily shows that the WASM module loads and that the exported C functions (including the stubs) are callable from JavaScript. It does not perform any real inference.
+### Example Features
+
+The example demonstrates:
+
+1. **Model Loading**:
+   * Loading a BitNet model from a GGUF file
+   * Displaying model information
+   * Simulating inference with the loaded model
+
+2. **Matrix Operations**:
+   * Matrix multiplication with BitNet quantization
+   * Visualization of matrix operation results
+
+3. **Tensor Transformations**:
+   * Transforming tensors using BitNet quantization
+   * Displaying the transformation results
+
+**Note:** While the matrix multiplication and tensor transformation demos perform actual computations using the implemented BitNet functions, the model inference demo currently simulates the inference process. Full model inference requires implementing the additional components described in the "Next Steps" section.
 
