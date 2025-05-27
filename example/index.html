@@ -18,14 +18,38 @@
         button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
         button:hover { background-color: #45a049; }
         .result-section { margin-top: 15px; padding: 10px; background-color: #f9f9f9; border: 1px solid #eee; }
+        .model-output { background-color: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 10px; border-left: 4px solid #4CAF50; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>BitNet-WASM Example</h1>
-        <p>This example demonstrates loading the BitNet WASM module and using the implemented BitNet functions for matrix operations.</p>
+        <p>This example demonstrates loading the BitNet WASM module and using the implemented BitNet functions for matrix operations and model inference.</p>
         
         <div id="status" class="status">Initializing...</div>
+        
+        <div class="demo-section">
+            <h2>BitNet Model Inference Demo</h2>
+            <p>This demo loads a BitNet model and runs inference with it.</p>
+            
+            <div class="input-section">
+                <label for="model-path">Model Path:</label>
+                <input type="text" id="model-path" value="/models/ggml-model-i2_s.gguf" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                <button id="load-model">Load Model</button>
+                <div id="load-status" style="margin: 10px 0;"></div>
+                
+                <label for="inference-input">Input Text:</label>
+                <textarea id="inference-input">Microsoft Corporation is an American multinational corporation and technology company headquartered in Redmond, Washington.</textarea>
+                
+                <button id="run-inference" disabled>Run Inference</button>
+            </div>
+            
+            <div class="result-section">
+                <h3>Result:</h3>
+                <div id="inference-result">Load a model and run inference to see results</div>
+            </div>
+        </div>
         
         <div class="demo-section">
             <h2>Matrix Multiplication Demo</h2>

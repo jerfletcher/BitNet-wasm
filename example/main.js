@@ -152,6 +152,75 @@ function transformTensor(tensorData) {
     }
 }
 
+// Function to load a model file
+async function loadModelFile(modelPath) {
+    const outputElement = document.getElementById('output');
+    outputElement.innerHTML += `Loading model from ${modelPath}...<br>`;
+    
+    try {
+        const response = await fetch(modelPath);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        outputElement.innerHTML += `Model loaded, size: ${(arrayBuffer.byteLength / (1024 * 1024)).toFixed(2)} MB<br>`;
+        
+        // Allocate memory in the WASM heap for the model data
+        const modelDataPtr = wasmModule._malloc(arrayBuffer.byteLength);
+        
+        // Copy the model data to the WASM heap
+        const modelDataHeap = new Uint8Array(wasmModule.HEAPU8.buffer, modelDataPtr, arrayBuffer.byteLength);
+        modelDataHeap.set(new Uint8Array(arrayBuffer));
+        
+        outputElement.innerHTML += `Model data copied to WASM heap<br>`;
+        
+        return {
+            ptr: modelDataPtr,
+            size: arrayBuffer.byteLength,
+            free: () => wasmModule._free(modelDataPtr)
+        };
+    } catch (error) {
+        outputElement.innerHTML += `Error loading model: ${error.message}<br>`;
+        console.error('Error loading model:', error);
+        throw error;
+    }
+}
+
+// Function to run inference with the loaded model
+function runModelInference(modelData, inputText) {
+    const outputElement = document.getElementById('output');
+    outputElement.innerHTML += `Running inference with input: "${inputText}"<br>`;
+    
+    try {
+        // For demonstration purposes, we'll just show that we've loaded the model
+        // In a real implementation, we would:
+        // 1. Tokenize the input text
+        // 2. Create input tensors
+        // 3. Run the model forward pass
+        // 4. Process the output
+        
+        // Simulate tokenization by converting to simple character codes
+        const tokens = Array.from(inputText).map(c => c.charCodeAt(0));
+        outputElement.innerHTML += `Tokenized input (${tokens.length} tokens): ${tokens.slice(0, 10).join(', ')}...<br>`;
+        
+        // Simulate running the model
+        outputElement.innerHTML += `Model size: ${(modelData.size / (1024 * 1024)).toFixed(2)} MB<br>`;
+        outputElement.innerHTML += `Running BitNet inference (simulated)...<br>`;
+        
+        // In a real implementation, we would call the appropriate WASM functions here
+        
+        // Simulate output generation
+        const outputText = `This is a simulated response from the BitNet model based on your input: "${inputText}". In a real implementation, we would process the model's output tokens and generate text.`;
+        
+        return outputText;
+    } catch (error) {
+        outputElement.innerHTML += `Error running inference: ${error.message}<br>`;
+        console.error('Error running inference:', error);
+        throw error;
+    }
+}
+
 // This function will be called when the WASM module is loaded and initialized
 function onWasmInitialized(wasmModuleInstance) {
     console.log('BitNet WASM Module Initialized and Ready.');
@@ -190,6 +259,7 @@ function onWasmInitialized(wasmModuleInstance) {
     // Set up event listeners for the demo buttons
     setupMatrixMultiplicationDemo();
     setupTensorTransformationDemo();
+    setupModelInferenceDemo();
 }
 
 // Set up the matrix multiplication demo
@@ -262,6 +332,71 @@ function setupTensorTransformationDemo() {
             resultElement.innerHTML = resultHTML;
         } catch (e) {
             console.error('Error in tensor transformation demo:', e);
+            resultElement.innerHTML = `<span class="error">Error: ${e.message}</span>`;
+        }
+    });
+}
+
+// Set up the model inference demo
+function setupModelInferenceDemo() {
+    const runButton = document.getElementById('run-inference');
+    if (!runButton) return;
+    
+    let modelData = null;
+    
+    // Load the model when the load button is clicked
+    const loadButton = document.getElementById('load-model');
+    if (loadButton) {
+        loadButton.addEventListener('click', async () => {
+            const modelPath = document.getElementById('model-path').value;
+            const loadStatusElement = document.getElementById('load-status');
+            
+            try {
+                loadStatusElement.textContent = 'Loading model...';
+                loadStatusElement.className = '';
+                
+                // Free previous model data if it exists
+                if (modelData) {
+                    modelData.free();
+                    modelData = null;
+                }
+                
+                // Load the model
+                modelData = await loadModelFile(modelPath);
+                
+                loadStatusElement.textContent = 'Model loaded successfully!';
+                loadStatusElement.className = 'success';
+                
+                // Enable the run button
+                runButton.disabled = false;
+            } catch (e) {
+                console.error('Error loading model:', e);
+                loadStatusElement.textContent = `Error loading model: ${e.message}`;
+                loadStatusElement.className = 'error';
+                
+                // Disable the run button
+                runButton.disabled = true;
+            }
+        });
+    }
+    
+    // Run inference when the run button is clicked
+    runButton.addEventListener('click', () => {
+        const inputText = document.getElementById('inference-input').value;
+        const resultElement = document.getElementById('inference-result');
+        
+        try {
+            if (!modelData) {
+                throw new Error('Model not loaded. Please load a model first.');
+            }
+            
+            // Run inference
+            const outputText = runModelInference(modelData, inputText);
+            
+            // Display the result
+            resultElement.innerHTML = `<h4>Model Output:</h4><div class="model-output">${outputText}</div>`;
+        } catch (e) {
+            console.error('Error in model inference demo:', e);
             resultElement.innerHTML = `<span class="error">Error: ${e.message}</span>`;
         }
     });
