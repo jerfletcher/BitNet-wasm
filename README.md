@@ -66,8 +66,8 @@ You can call these from JavaScript using `Module.ccall` or `Module.cwrap` after 
 ## Current Status & Limitations
 
 The build process has been updated:
-*   The Emscripten SDK (currently v4.0.8) is now expected to be installed in the environment (e.g., in `/tmp/emsdk`). The `build.sh` script sources `emsdk_env.sh` and calls `emcc` directly. The Docker setup is still available in `build.sh` but commented out.
-*   The `build.sh` script now uses the `-s EXPORT_ALL=1` Emscripten flag. This means most C functions from the compiled sources (including many `ggml_*` functions) are exported and available on the `Module` object in JavaScript (prefixed with an underscore).
+*   The Emscripten SDK (currently v4.0.8) is installed in the project directory (`./emsdk`). The `build.sh` script sources `emsdk_env.sh` and calls `emcc` directly.
+*   The `build.sh` script exports specific functions needed for BitNet operations. These functions are available on the `Module` object in JavaScript (prefixed with an underscore).
 
 **Build Artifacts:**
 *   `bitnet.js` (JavaScript glue code)
@@ -125,14 +125,17 @@ The JavaScript integration is implemented in `example/main.js` with the followin
 1.  **Core BitNet Functions:**
     *   The essential C++ functions `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (defined in `src/ggml-bitnet-lut.cpp`) have been implemented with basic functionality.
     *   These implementations support 2-bit quantization for weights (-1, 0, 1) and matrix multiplication with scaling factors.
-    *   The current implementation provides a foundation for BitNet operations but requires further optimization and testing.
+    *   The matrix multiplication function has been optimized to properly handle memory allocation and data transfer between JavaScript and WASM.
+    *   The tensor transformation function has been implemented to demonstrate BitNet quantization.
 2.  **Basic Model Loading:**
     *   The example now includes functionality to load a BitNet model in GGUF format.
     *   The current implementation loads the model into memory but does not yet perform full inference with the model.
 3.  **Demonstration UI:**
-    *   The example UI has been updated to demonstrate matrix multiplication, tensor transformation, and model loading.
+    *   The example UI demonstrates matrix multiplication, tensor transformation, and model loading.
+    *   The matrix multiplication demo allows users to input custom matrices and see the results of BitNet quantized multiplication.
+    *   The tensor transformation demo shows how BitNet quantization affects tensor values.
 
-**Conclusion:** The WASM module can be built, loaded, and basic BitNet operations can be performed. However, **full model inference requires additional work as outlined below.**
+**Conclusion:** The WASM module can be built, loaded, and basic BitNet operations can be performed. The matrix multiplication and tensor transformation demos are fully functional. However, **full model inference requires additional work as outlined below.**
 
 ## Next Steps for Full Functionality
 
