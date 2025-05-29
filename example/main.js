@@ -47,31 +47,49 @@ function allocateInt8Array(array) {
 
 // Helper function to read a Float32Array from the WASM heap
 function readFloat32Array(ptr, length) {
-    return new Float32Array(wasmModule.HEAPF32.buffer.slice(ptr, ptr + length * Float32Array.BYTES_PER_ELEMENT));
+    return new Float32Array(wasmModule.HEAPF32.buffer, ptr, length);
 }
 
 // Helper function to read an Int8Array from the WASM heap
 function readInt8Array(ptr, length) {
-    return new Int8Array(wasmModule.HEAP8.buffer.slice(ptr, ptr + length * Int8Array.BYTES_PER_ELEMENT));
+    return new Int8Array(wasmModule.HEAP8.buffer, ptr, length);
 }
 
 // Function to perform matrix multiplication using BitNet
 function performMatrixMultiplication(matrixA, matrixB) {
     // Allocate memory for input matrices
     const inputPtr = allocateFloat32Array(matrixA.data);
-    const weightsPtr = allocateFloat32Array(matrixB.data);
+    
+    // Quantize the weights matrix
+    // For each weight, we'll quantize to -1, 0, or 1
+    const qWeightsData = new Int8Array(matrixB.rows * matrixB.cols);
+    for (let i = 0; i < matrixB.data.length; i++) {
+        const val = matrixB.data[i];
+        if (Math.abs(val) < 0.05) {
+            qWeightsData[i] = 0;
+        } else if (val > 0) {
+            qWeightsData[i] = 1;
+        } else {
+            qWeightsData[i] = -1;
+        }
+    }
+    const qWeightsPtr = allocateInt8Array(qWeightsData);
     
     // Allocate memory for output matrix
     const outputData = new Float32Array(matrixA.rows * matrixB.cols);
     const outputPtr = allocateFloat32Array(outputData);
     
-    // Allocate memory for quantized weights
-    const qWeightsData = new Int8Array(matrixB.rows * matrixB.cols);
-    const qWeightsPtr = allocateInt8Array(qWeightsData);
-    
     // Allocate memory for scales
     const scalesData = new Float32Array(matrixB.rows);
-    scalesData.fill(1.0); // Default scale
+    // Calculate scales based on the maximum absolute value in each row
+    for (let i = 0; i < matrixB.rows; i++) {
+        let maxVal = 0;
+        for (let j = 0; j < matrixB.cols; j++) {
+            const val = Math.abs(matrixB.data[i * matrixB.cols + j]);
+            if (val > maxVal) maxVal = val;
+        }
+        scalesData[i] = maxVal > 0 ? maxVal : 1.0;
+    }
     const scalesPtr = allocateFloat32Array(scalesData);
     
     // Allocate memory for LUT scales
@@ -85,6 +103,7 @@ function performMatrixMultiplication(matrixA, matrixB) {
     const lutBiasesPtr = allocateFloat32Array(lutBiasesData);
     
     try {
+        console.log("Calling ggml_bitnet_mul_mat_task_compute");
         // Call the BitNet matrix multiplication function
         wasmModule._ggml_bitnet_mul_mat_task_compute(
             inputPtr.ptr,
@@ -100,12 +119,17 @@ function performMatrixMultiplication(matrixA, matrixB) {
         );
         
         // Read the result
-        const result = readFloat32Array(outputPtr.ptr, matrixA.rows * matrixB.cols);
+        const result = new Float32Array(matrixA.rows * matrixB.cols);
+        const heapView = new Float32Array(wasmModule.HEAPF32.buffer, outputPtr.ptr, matrixA.rows * matrixB.cols);
+        result.set(heapView);
+        
         return createMatrix(result, matrixA.rows, matrixB.cols);
+    } catch (e) {
+        console.error("Error in matrix multiplication:", e);
+        throw e;
     } finally {
         // Free allocated memory
         inputPtr.free();
-        weightsPtr.free();
         outputPtr.free();
         qWeightsPtr.free();
         scalesPtr.free();
@@ -116,39 +140,44 @@ function performMatrixMultiplication(matrixA, matrixB) {
 
 // Function to transform a tensor using BitNet quantization
 function transformTensor(tensorData) {
-    // Create a dummy tensor structure
-    const rows = 1;
-    const cols = tensorData.length;
+    // Allocate memory for input tensor
+    const inputPtr = allocateFloat32Array(tensorData);
     
-    // Allocate memory for the tensor data
-    const dataPtr = allocateFloat32Array(tensorData);
-    
-    // Create a simple tensor structure in WASM memory
-    const tensorPtr = wasmModule._malloc(32); // Simplified tensor structure
-    
-    // Set tensor dimensions
-    wasmModule.HEAP32[tensorPtr/4] = cols; // ne[0]
-    wasmModule.HEAP32[tensorPtr/4 + 1] = rows; // ne[1]
-    wasmModule.HEAP32[tensorPtr/4 + 2] = 1; // ne[2]
-    wasmModule.HEAP32[tensorPtr/4 + 3] = 1; // ne[3]
-    
-    // Set tensor data pointer
-    wasmModule.HEAP32[tensorPtr/4 + 4] = dataPtr.ptr;
+    // Allocate memory for output tensor (same size as input)
+    const outputData = new Float32Array(tensorData.length);
+    const outputPtr = allocateFloat32Array(outputData);
     
     try {
+        console.log("Calling ggml_bitnet_transform_tensor");
         // Call the BitNet tensor transformation function
-        wasmModule._ggml_bitnet_transform_tensor(tensorPtr);
+        wasmModule._ggml_bitnet_transform_tensor(
+            inputPtr.ptr,
+            outputPtr.ptr,
+            tensorData.length,
+            2 // 2-bit quantization
+        );
         
-        // For demonstration purposes, we'll just return the original data
-        // In a real implementation, we would access the quantized data from the tensor
+        // Read the result
+        const result = new Float32Array(tensorData.length);
+        const heapView = new Float32Array(wasmModule.HEAPF32.buffer, outputPtr.ptr, tensorData.length);
+        result.set(heapView);
+        
         return {
             original: Array.from(tensorData),
-            message: "Tensor transformed successfully. In a real implementation, we would return the quantized data."
+            transformed: Array.from(result),
+            message: "Tensor transformed successfully."
+        };
+    } catch (e) {
+        console.error("Error in tensor transformation:", e);
+        return {
+            original: Array.from(tensorData),
+            error: e.toString(),
+            message: "Error transforming tensor."
         };
     } finally {
         // Free allocated memory
-        dataPtr.free();
-        wasmModule._free(tensorPtr);
+        inputPtr.free();
+        outputPtr.free();
     }
 }
 
@@ -241,8 +270,18 @@ function onWasmInitialized(wasmModuleInstance) {
         console.log('Initializing BitNet...');
         outputElement.innerHTML += 'Initializing BitNet...<br>';
         
-        wasmModule._ggml_init(0);
-        wasmModule._ggml_bitnet_init();
+        // Initialize the WASM module
+        if (typeof wasmModule._ggml_init === 'function') {
+            wasmModule._ggml_init(0);
+        } else {
+            console.warn('_ggml_init function not found, skipping initialization');
+        }
+        
+        if (typeof wasmModule._ggml_bitnet_init === 'function') {
+            wasmModule._ggml_bitnet_init();
+        } else {
+            throw new Error('_ggml_bitnet_init function not found');
+        }
         
         console.log('BitNet initialized successfully.');
         outputElement.innerHTML += 'BitNet initialized successfully.<br>';
