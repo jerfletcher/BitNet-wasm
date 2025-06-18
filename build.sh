@@ -14,7 +14,7 @@ OUTPUT_FILE="bitnet.wasm"
 OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
 
 # Emscripten compiler flags
-EMCC_FLAGS="-O2 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['_ggml_bitnet_init','_ggml_bitnet_free','_ggml_bitnet_mul_mat_task_compute','_ggml_bitnet_transform_tensor','_malloc','_free'] -s ALLOW_MEMORY_GROWTH=1"
+EMCC_FLAGS="-O2 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['_ggml_init','_ggml_nelements','_ggml_bitnet_init','_ggml_bitnet_free','_ggml_bitnet_mul_mat_task_compute','_ggml_bitnet_transform_tensor','_malloc','_free'] -s ALLOW_MEMORY_GROWTH=1"
 
 # Prepare bitnet-lut-kernels.h by copying a preset one
 PRESET_KERNEL_HEADER="preset_kernels/bitnet_b1_58-3B/bitnet-lut-kernels-tl1.h"

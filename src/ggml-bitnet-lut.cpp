@@ -159,43 +159,32 @@ void ggml_bitnet_mul_mat_task_compute(
 }
 
 EMSCRIPTEN_KEEPALIVE
-void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
-    printf("ggml_bitnet_transform_tensor: transforming tensor\n");
+void ggml_bitnet_transform_tensor(
+    void * input_ptr, 
+    void * output_ptr, 
+    int length, 
+    int bits) {
+    
+    printf("ggml_bitnet_transform_tensor: transforming tensor with %d bits\n", bits);
     
     if (!initialized) {
         printf("ggml_bitnet_transform_tensor: BitNet not initialized\n");
         return;
     }
     
-    if (!tensor) {
-        printf("ggml_bitnet_transform_tensor: null tensor provided\n");
+    if (!input_ptr || !output_ptr) {
+        printf("ggml_bitnet_transform_tensor: null pointer provided\n");
         return;
     }
     
-    // Get tensor dimensions
-    int64_t ne0 = tensor->ne[0];
-    int64_t ne1 = tensor->ne[1];
-    int64_t ne = ne0 * ne1;
+    // Cast pointers to appropriate types
+    bitnet_float_type * input_data = (bitnet_float_type *)input_ptr;
+    bitnet_float_type * output_data = (bitnet_float_type *)output_ptr;
     
-    // Allocate memory for quantized weights and scales
-    uint8_t * qweights = (uint8_t *)aligned_malloc(ne * sizeof(uint8_t) / 4);
-    bitnet_float_type * scales = (bitnet_float_type *)aligned_malloc(sizeof(bitnet_float_type));
-    
-    if (!qweights || !scales) {
-        printf("ggml_bitnet_transform_tensor: failed to allocate memory\n");
-        if (qweights) aligned_free(qweights);
-        if (scales) aligned_free(scales);
-        return;
-    }
-    
-    // Get tensor data
-    bitnet_float_type * data = (bitnet_float_type *)tensor->data;
-    
-    // Quantize the tensor
-    // Find the maximum absolute value
+    // Find the maximum absolute value for scaling
     bitnet_float_type max_val = 0.0f;
-    for (int64_t i = 0; i < ne; i++) {
-        bitnet_float_type abs_val = fabsf(data[i]);
+    for (int i = 0; i < length; i++) {
+        bitnet_float_type abs_val = fabsf(input_data[i]);
         if (abs_val > max_val) {
             max_val = abs_val;
         }
@@ -203,45 +192,38 @@ void ggml_bitnet_transform_tensor(struct ggml_tensor * tensor) {
     
     // Calculate the scale factor
     bitnet_float_type scale = max_val > 0.0f ? 1.0f / max_val : 1.0f;
-    *scales = scale;
     
-    // Quantize to 2-bit values (-1, 0, 1)
-    memset(qweights, 0, ne * sizeof(uint8_t) / 4);
-    for (int64_t i = 0; i < ne; i++) {
-        // Quantize to -1, 0, 1
+    // Quantize and dequantize the tensor
+    for (int i = 0; i < length; i++) {
+        // Quantize to -1, 0, 1 (or more levels based on bits)
         int8_t q_val;
-        if (fabsf(data[i]) < 1e-6f) {
-            q_val = 0; // Zero
-        } else if (data[i] > 0) {
-            q_val = 1; // Positive
+        bitnet_float_type val = input_data[i];
+        
+        if (bits == 1) {
+            // 1-bit quantization: -1, 1
+            q_val = (val >= 0) ? 1 : -1;
+        } else if (bits == 2) {
+            // 2-bit quantization: -1, 0, 1
+            if (fabsf(val) < 0.1f * max_val) {
+                q_val = 0; // Zero
+            } else if (val > 0) {
+                q_val = 1; // Positive
+            } else {
+                q_val = -1; // Negative
+            }
         } else {
-            q_val = -1; // Negative
+            // Default to 2-bit
+            if (fabsf(val) < 0.1f * max_val) {
+                q_val = 0; // Zero
+            } else if (val > 0) {
+                q_val = 1; // Positive
+            } else {
+                q_val = -1; // Negative
+            }
         }
         
-        // Pack 4 2-bit values into a byte
-        int group_idx = i % 4;
-        int byte_idx = i / 4;
-        
-        // Shift and set the bits
-        uint8_t bits = (q_val + 1) & 0x3; // Convert -1,0,1 to 0,1,2
-        qweights[byte_idx] |= (bits << (group_idx * 2));
-    }
-    
-    // Store the quantized tensor in the extras
-    if (bitnet_tensor_extras_index < GGML_BITNET_MAX_NODES) {
-        bitnet_tensor_extra * extra = &bitnet_tensor_extras[bitnet_tensor_extras_index++];
-        extra->qweights = qweights;
-        extra->scales = scales;
-        extra->lut_scales_size = 1;
-        extra->BK = ne0;
-        extra->n_tile_num = ne1;
-        
-        // Associate the extra with the tensor
-        tensor->extra = extra;
-    } else {
-        printf("ggml_bitnet_transform_tensor: exceeded maximum number of tensor extras\n");
-        aligned_free(qweights);
-        aligned_free(scales);
+        // Dequantize and store in output
+        output_data[i] = q_val * max_val;
     }
     
     printf("ggml_bitnet_transform_tensor: transformation complete\n");
