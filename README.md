@@ -2,6 +2,99 @@
 
 This project provides a complete solution for running BitNet operations in the browser using WebAssembly (WASM). It includes a build system, core BitNet operations, and example code for matrix multiplication, tensor transformation, and model loading. The implementation is based on the BitNet paper and uses the Emscripten SDK to compile C++ code to WebAssembly.
 
+## Table of Contents
+
+- [OpenHands AI Assistant Integration](#openhands-ai-assistant-integration)
+- [Build Process](#build-process)
+- [WASM Module Interface](#wasm-module-interface)
+- [Current Status & Limitations](#current-status--limitations)
+- [Implementation Details](#implementation-details)
+- [Example Usage](#example-usage)
+- [Native GGUF-to-Flat Conversion Test](#native-gguf-to-flat-conversion-test)
+- [Project Status and What Remains](#project-status-and-what-remains)
+
+## OpenHands AI Assistant Integration
+
+This repository includes an integrated OpenHands AI assistant that can help with development tasks, bug fixes, and feature implementations through GitHub issues and pull requests.
+
+### How to Use OpenHands
+
+The OpenHands AI assistant is automatically triggered when:
+
+1. **Issues are labeled** with the trigger macro (default: `@openhands-agent`)
+2. **Pull requests are labeled** with the trigger macro
+3. **Comments are created** on issues or pull requests mentioning the trigger macro
+4. **Pull request reviews** are submitted mentioning the trigger macro
+
+### Setup Instructions
+
+To enable the OpenHands integration in your repository, you need to configure the following secrets and variables:
+
+#### Required Secrets
+
+Navigate to your repository's **Settings > Secrets and variables > Actions** and add:
+
+1. **`PAT_TOKEN`** - A GitHub Personal Access Token with the following permissions:
+   - `repo` (Full control of private repositories)
+   - `workflow` (Update GitHub Action workflows)
+   - `write:packages` (Write packages to GitHub Package Registry)
+
+2. **`PAT_USERNAME`** - The GitHub username associated with the PAT token
+
+3. **`LLM_API_KEY`** - API key for the language model service (e.g., Anthropic Claude, OpenAI)
+
+4. **`LLM_BASE_URL`** (Optional) - Base URL for the LLM API if using a custom endpoint
+
+#### Optional Variables
+
+Navigate to your repository's **Settings > Secrets and variables > Actions > Variables** and configure:
+
+1. **`OPENHANDS_MACRO`** - Trigger phrase for the assistant (default: `@openhands-agent`)
+2. **`OPENHANDS_MAX_ITER`** - Maximum iterations for the assistant (default: `50`)
+3. **`LLM_MODEL`** - Language model to use (default: `anthropic/claude-sonnet-4-20250514`)
+4. **`TARGET_BRANCH`** - Default branch for operations (default: `main`)
+5. **`TARGET_RUNNER`** - GitHub Actions runner to use (default: `ubuntu-latest`)
+6. **`OPENHANDS_BASE_CONTAINER_IMAGE`** - Custom container image for OpenHands
+
+### Creating a Personal Access Token
+
+1. Go to GitHub **Settings > Developer settings > Personal access tokens > Tokens (classic)**
+2. Click **Generate new token (classic)**
+3. Give it a descriptive name like "OpenHands Integration"
+4. Select the following scopes:
+   - `repo` - Full control of private repositories
+   - `workflow` - Update GitHub Action workflows
+   - `write:packages` - Write packages to GitHub Package Registry
+5. Click **Generate token**
+6. Copy the token immediately (you won't be able to see it again)
+
+### Example Usage
+
+Once configured, you can interact with OpenHands by:
+
+1. **Creating an issue** and adding the label or mentioning `@openhands-agent` in the description
+2. **Commenting on an issue**: "Hey @openhands-agent, can you help fix the build error in the WASM compilation?"
+3. **Labeling a pull request** and mentioning specific tasks in comments
+4. **Requesting code reviews**: "@openhands-agent please review this implementation and suggest improvements"
+
+### Supported LLM Providers
+
+The OpenHands integration supports various language model providers:
+
+- **Anthropic Claude** (recommended): `anthropic/claude-sonnet-4-20250514`
+- **OpenAI GPT**: `openai/gpt-4` or `openai/gpt-3.5-turbo`
+- **Custom endpoints**: Configure `LLM_BASE_URL` for self-hosted models
+
+### Troubleshooting
+
+If OpenHands isn't responding:
+
+1. Check that all required secrets are properly configured
+2. Verify the PAT token has the correct permissions
+3. Ensure the trigger macro is correctly mentioned in issues/comments
+4. Check the Actions tab for workflow execution logs
+5. Verify the LLM API key is valid and has sufficient credits/quota
+
 ## Build Process
 
 The build process is now simplified with the `setup_and_build.sh` script, which handles all dependencies and builds the WASM module.
