@@ -512,11 +512,12 @@ python3 -m http.server 12000 --bind 0.0.0.0
 # Open browser to http://localhost:12000/test.html
 ```
 
-The test page (`test.html`) provides:
-- BitNet WASM module loading and initialization
-- Interactive inference testing with custom prompts
-- Real-time output logging
-- Demonstration of BitNet functions in the browser
+The test page (`test.html`) provides a comprehensive example app with:
+- **BitNet Model Inference Demo**: Load GGUF models and run inference with custom text
+- **Matrix Multiplication Demo**: Interactive BitNet matrix operations with 2-bit quantization
+- **Tensor Transformation Demo**: BitNet quantization demonstration with real-time results
+- **WASM Module Status**: Real-time initialization and function availability monitoring
+- **Interactive Interface**: User-friendly web interface with immediate feedback
 
 The WASM module successfully:
 1. Loads the BitNet WASM module
@@ -537,10 +538,11 @@ The WASM module successfully:
 **WASM Test Features:**
 - ✅ Module loading and initialization
 - ✅ Function export verification
-- ✅ Interactive web interface
-- ✅ Real-time logging
-- ✅ Custom prompt testing
-- ✅ Error handling
+- ✅ Interactive web interface with comprehensive demos
+- ✅ Matrix multiplication with BitNet quantization
+- ✅ Tensor transformation with 2-bit quantization
+- ✅ Model inference demo with GGUF loading
+- ✅ Real-time results and error handling
 
 **Summary:**
 - The project supports BitNet quantized ops and model loading in WASM, and can convert models natively (with caveats).
