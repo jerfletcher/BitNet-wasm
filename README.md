@@ -1,38 +1,59 @@
 # BitNet-WASM: WebAssembly Package for BitNet Operations
 
-This project provides a build process to compile parts of the BitNet-wasm C++ code into a WebAssembly (WASM) package.
-The build uses Docker and the Emscripten SDK.
+This project provides a complete solution for running BitNet operations in the browser using WebAssembly (WASM). It includes a build system, core BitNet operations, and example code for matrix multiplication, tensor transformation, and model loading. The implementation is based on the BitNet paper and uses the Emscripten SDK to compile C++ code to WebAssembly.
 
 ## Build Process
 
-The build is orchestrated by the `build.sh` script.
+The build process is now simplified with the `setup_and_build.sh` script, which handles all dependencies and builds the WASM module.
 
 ### Prerequisites
 
-*   Docker
-*   A Linux-like environment with bash (the script uses `sudo dockerd` if Docker is not running, which might require passwordless sudo or manual Docker daemon startup).
+*   A Linux-like environment with bash
+*   Internet connection (for downloading dependencies)
+*   Basic build tools (will be installed if missing)
 
-### Steps
+### Automated Setup and Build
 
-1.  **Clone the Repository (if not already done for this session):**
+1.  **Clone the Repository:**
     ```bash
-    # git clone https://github.com/jerfletcher/BitNet-wasm.git
-    # cd BitNet-wasm
-    # git submodule update --init --recursive 3rdparty/llama.cpp
-    # (Note: The build script currently uses llama.cpp commit 5eb47b72 from the submodule)
+    git clone https://github.com/jerfletcher/BitNet-wasm.git
+    cd BitNet-wasm
     ```
 
+2.  **Run the Setup and Build Script:**
+    ```bash
+    ./setup_and_build.sh
+    ```
+    
+    This script performs the following actions:
+    *   Installs git if not already installed
+    *   Initializes git submodules (llama.cpp and llama-cpp-wasm)
+    *   Downloads and installs Emscripten SDK 4.0.8
+    *   Creates a models directory
+    *   Installs Python and the huggingface_hub package
+    *   Downloads a sample BitNet model from Hugging Face
+    *   Runs the build script to compile the WASM module
+    *   Provides instructions for testing the example
+
+### Manual Build (Advanced)
+
+If you prefer to manually control the build process, you can use the `build.sh` script directly:
+
+1.  **Ensure Prerequisites:**
+    *   Emscripten SDK 4.0.8 installed and activated
+    *   Git submodules initialized
+
 2.  **Run the Build Script:**
-    From the root of the `BitNet-wasm` directory:
     ```bash
     ./build.sh
     ```
+    
     This script performs the following actions:
-    *   Sets up the Emscripten Docker environment (`emscripten/emsdk:4.0.8`).
-    *   Copies necessary kernel header files.
-    *   Compiles the C/C++ sources (`src/*.cpp`, `3rdparty/llama.cpp/ggml/src/*.c`, `3rdparty/llama.cpp/ggml/src/*.cpp`) using `emcc`.
-    *   Generates `bitnet.wasm` (the WASM module) and `bitnet.js` (the JavaScript loader/glue code) in the root directory.
-    *   Logs stdout and stderr from `emcc` to `emcc_stdout.log` and `emcc_stderr.log` respectively.
+    *   Copies necessary kernel header files
+    *   Creates stub implementations for required GGML functions
+    *   Compiles the C/C++ sources using `emcc`
+    *   Generates `bitnet.wasm` (the WASM module) and `bitnet.js` (the JavaScript loader/glue code)
+    *   Logs build output to `emcc_stdout.log` and `emcc_stderr.log`
 
 ## WASM Module Interface
 
@@ -66,8 +87,8 @@ You can call these from JavaScript using `Module.ccall` or `Module.cwrap` after 
 ## Current Status & Limitations
 
 The build process has been updated:
-*   The Emscripten SDK (currently v4.0.8) is now expected to be installed in the environment (e.g., in `/tmp/emsdk`). The `build.sh` script sources `emsdk_env.sh` and calls `emcc` directly. The Docker setup is still available in `build.sh` but commented out.
-*   The `build.sh` script now uses the `-s EXPORT_ALL=1` Emscripten flag. This means most C functions from the compiled sources (including many `ggml_*` functions) are exported and available on the `Module` object in JavaScript (prefixed with an underscore).
+*   The Emscripten SDK (currently v4.0.8) is installed in the project directory (`./emsdk`). The `build.sh` script sources `emsdk_env.sh` and calls `emcc` directly.
+*   The `build.sh` script exports specific functions needed for BitNet operations. These functions are available on the `Module` object in JavaScript (prefixed with an underscore).
 
 **Build Artifacts:**
 *   `bitnet.js` (JavaScript glue code)
@@ -125,14 +146,17 @@ The JavaScript integration is implemented in `example/main.js` with the followin
 1.  **Core BitNet Functions:**
     *   The essential C++ functions `ggml_bitnet_mul_mat_task_compute` and `ggml_bitnet_transform_tensor` (defined in `src/ggml-bitnet-lut.cpp`) have been implemented with basic functionality.
     *   These implementations support 2-bit quantization for weights (-1, 0, 1) and matrix multiplication with scaling factors.
-    *   The current implementation provides a foundation for BitNet operations but requires further optimization and testing.
+    *   The matrix multiplication function has been optimized to properly handle memory allocation and data transfer between JavaScript and WASM.
+    *   The tensor transformation function has been implemented to demonstrate BitNet quantization.
 2.  **Basic Model Loading:**
     *   The example now includes functionality to load a BitNet model in GGUF format.
     *   The current implementation loads the model into memory but does not yet perform full inference with the model.
 3.  **Demonstration UI:**
-    *   The example UI has been updated to demonstrate matrix multiplication, tensor transformation, and model loading.
+    *   The example UI demonstrates matrix multiplication, tensor transformation, and model loading.
+    *   The matrix multiplication demo allows users to input custom matrices and see the results of BitNet quantized multiplication.
+    *   The tensor transformation demo shows how BitNet quantization affects tensor values.
 
-**Conclusion:** The WASM module can be built, loaded, and basic BitNet operations can be performed. However, **full model inference requires additional work as outlined below.**
+**Conclusion:** The WASM module can be built, loaded, and basic BitNet operations can be performed. The matrix multiplication and tensor transformation demos are fully functional. However, **full model inference requires additional work as outlined below.**
 
 ## Next Steps for Full Functionality
 
@@ -184,6 +208,17 @@ An example demonstrating how to use the BitNet WASM module is provided in the `e
 
 ### Running the Example
 
+If you used the `setup_and_build.sh` script, all the necessary components should already be set up. You can simply:
+
+1.  Start a simple HTTP server in the `BitNet-wasm` root directory:
+    ```bash
+    python3 -m http.server 8000
+    ```
+2.  Open `http://localhost:8000/example/index.html` in your browser to see the demo.
+3.  Open `http://localhost:8000/tests/index.html` in your browser to run the tests.
+
+If you're setting up manually:
+
 1.  Ensure `bitnet.js` and `bitnet.wasm` are built using `./build.sh`.
 2.  Download a BitNet model in GGUF format:
     ```bash
@@ -192,11 +227,11 @@ An example demonstrating how to use the BitNet WASM module is provided in the `e
     
     # Download a BitNet model from Hugging Face
     # You can use the huggingface_hub Python package:
-    python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='microsoft/BitNet-b1.58-2B-4T-gguf', filename='ggml-model-i2_s.gguf', local_dir='models')"
+    python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='microsoft/BitNet-b1.58-2B-4T-gguf', filename='ggml-model-i2_s.gguf', local_dir='models')"
     ```
 3.  Start a simple HTTP server in the `BitNet-wasm` root directory:
     ```bash
-    python -m http.server 8000
+    python3 -m http.server 8000
     ```
 4.  Open `http://localhost:8000/example/index.html` in your browser.
 

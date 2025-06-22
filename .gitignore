@@ -44,3 +44,6 @@ poetry.toml
 
 build/
 logs/
+
+# Emscripten SDK
+emsdk/
