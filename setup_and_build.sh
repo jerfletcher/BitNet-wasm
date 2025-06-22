@@ -59,11 +59,18 @@ fi
 echo "Installing Python dependencies for model downloading..."
 pip3 install --break-system-packages huggingface_hub
 
-# Download a sample BitNet model if not already downloaded
-MODEL_PATH="models/ggml-model-i2_s.gguf"
+# Download the base BitNet model using the official Microsoft model
+MODEL_DIR="models/BitNet-b1.58-2B-4T"
+MODEL_PATH="$MODEL_DIR/ggml-model-i2_s.gguf"
 if [ ! -f "$MODEL_PATH" ]; then
-    echo "Downloading sample BitNet model from Hugging Face..."
-    python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='microsoft/BitNet-b1.58-2B-4T-gguf', filename='ggml-model-i2_s.gguf', local_dir='models')"
+    echo "Downloading base BitNet model (BitNet-b1.58-2B-4T) from Hugging Face..."
+    # Use the official Microsoft BitNet model
+    python3 -c "from huggingface_hub import hf_hub_download; import os; os.makedirs('$MODEL_DIR', exist_ok=True); hf_hub_download(repo_id='microsoft/BitNet-b1.58-2B-4T-gguf', filename='ggml-model-i2_s.gguf', local_dir='$MODEL_DIR')"
+    
+    # Also download the tokenizer if available
+    if ! python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='microsoft/BitNet-b1.58-2B-4T-gguf', filename='tokenizer.model', local_dir='$MODEL_DIR')" 2>/dev/null; then
+        echo "Note: tokenizer.model not found, will use fallback tokenization"
+    fi
 fi
 
 # Now run the actual build script

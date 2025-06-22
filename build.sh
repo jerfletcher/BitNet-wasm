@@ -6,17 +6,17 @@ cd "$(dirname "$0")"
 echo "Building BitNet-WASM..."
 
 # Define source files and include directories
-BITNET_SOURCES="src/ggml-bitnet-lut.cpp"
-INCLUDE_DIRS="-Iinclude"
+BITNET_SOURCES="src/bitnet_simple.cpp"
+INCLUDE_DIRS="-Iinclude -I3rdparty/BitNet/include"
 
 # Output WASM file name
 OUTPUT_FILE="bitnet.wasm"
 OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
 
 # Emscripten compiler flags
-EMCC_FLAGS="-O2 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8','HEAPF32','HEAP8','HEAP32'] -s EXPORTED_FUNCTIONS=['_ggml_init','_ggml_nelements','_ggml_bitnet_init','_ggml_bitnet_free','_ggml_bitnet_mul_mat_task_compute','_ggml_bitnet_transform_tensor','_bitnet_wasm_infer','_gguf_to_flat','_malloc','_free'] -s ALLOW_MEMORY_GROWTH=1"
+EMCC_FLAGS="-O2 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8','HEAPF32','HEAP8','HEAP32','writeStringToMemory','lengthBytesUTF8','stringToUTF8'] -s EXPORTED_FUNCTIONS=['_bitnet_init','_bitnet_load_model','_bitnet_inference_run','_bitnet_get_model_info','_bitnet_is_model_loaded','_bitnet_free_model','_malloc','_free'] -s ALLOW_MEMORY_GROWTH=1 -s STACK_SIZE=5MB -s DISABLE_EXCEPTION_CATCHING=0 --bind"
 
-# Prepare bitnet-lut-kernels.h by copying a preset one
+# Prepare bitnet-lut-kernels.h by copying a preset one (using 3B preset for 2B model)
 PRESET_KERNEL_HEADER="preset_kernels/bitnet_b1_58-3B/bitnet-lut-kernels-tl1.h"
 TARGET_KERNEL_HEADER="include/bitnet-lut-kernels.h"
 
