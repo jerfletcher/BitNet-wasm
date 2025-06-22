@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitNet WASM Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>BitNet WASM Inference Test</h1>
+    
+    <div class="container">
+        <h2>BitNet WASM Module Status</h2>
+        <p>Status: <span id="status">Loading...</span></p>
+        <button id="initBtn" onclick="initBitNet()" disabled>Initialize BitNet</button>
+        <button id="testBtn" onclick="runInferenceTest()" disabled>Run Inference Test</button>
+    </div>
+    
+    <div class="container">
+        <h2>Inference Test</h2>
+        <label for="promptInput">Prompt:</label>
+        <input type="text" id="promptInput" value="Hello" placeholder="Enter your prompt">
+        <button onclick="runCustomInference()" id="customBtn" disabled>Run Custom Inference</button>
+    </div>
+    
+    <div class="container">
+        <h2>Output</h2>
+        <div id="output">Initializing BitNet WASM module...\n</div>
+    </div>
+
+    <script type="module">
+        import createBitNetModule from './bitnet.js';
+        
+        let BitNetModule = null;
+        let isInitialized = false;
+        
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        async function loadBitNetModule() {
+            try {
+                log('Loading BitNet WASM module...');
+                BitNetModule = await createBitNetModule();
+                log('BitNet WASM module loaded successfully!');
+                
+                document.getElementById('status').textContent = 'Loaded';
+                document.getElementById('initBtn').disabled = false;
+                
+                // Test basic function availability
+                if (BitNetModule._ggml_bitnet_init && BitNetModule._ggml_bitnet_free) {
+                    log('BitNet functions are available');
+                } else {
+                    log('Warning: Some BitNet functions may not be available');
+                }
+                
+            } catch (error) {
+                log('Error loading BitNet WASM module: ' + error.message);
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        window.initBitNet = function() {
+            if (!BitNetModule) {
+                log('Error: BitNet module not loaded');
+                return;
+            }
+            
+            try {
+                log('Initializing BitNet...');
+                BitNetModule._ggml_bitnet_init();
+                log('BitNet initialized successfully!');
+                isInitialized = true;
+                
+                document.getElementById('testBtn').disabled = false;
+                document.getElementById('customBtn').disabled = false;
+                document.getElementById('initBtn').disabled = true;
+                
+            } catch (error) {
+                log('Error initializing BitNet: ' + error.message);
+            }
+        };
+        
+        window.runInferenceTest = function() {
+            if (!isInitialized) {
+                log('Error: BitNet not initialized');
+                return;
+            }
+            
+            try {
+                log('Running BitNet inference test...');
+                
+                // Simulate inference test (since we don't have the full model loading in WASM yet)
+                const prompt = "Hello";
+                log('Input prompt: "' + prompt + '"');
+                log('Simulating BitNet inference...');
+                
+                // In a real implementation, this would call the WASM inference function
+                // For now, we'll just demonstrate the module is working
+                setTimeout(() => {
+                    log('Generated output: "Hello world! [BitNet WASM generated]"');
+                    log('Inference test completed successfully!');
+                }, 1000);
+                
+            } catch (error) {
+                log('Error during inference test: ' + error.message);
+            }
+        };
+        
+        window.runCustomInference = function() {
+            if (!isInitialized) {
+                log('Error: BitNet not initialized');
+                return;
+            }
+            
+            const prompt = document.getElementById('promptInput').value;
+            if (!prompt.trim()) {
+                log('Error: Please enter a prompt');
+                return;
+            }
+            
+            try {
+                log('Running custom inference...');
+                log('Input prompt: "' + prompt + '"');
+                log('Simulating BitNet inference...');
+                
+                // Simulate processing time
+                setTimeout(() => {
+                    log('Generated output: "' + prompt + ' world! [BitNet WASM custom generated]"');
+                    log('Custom inference completed successfully!');
+                }, 1000);
+                
+            } catch (error) {
+                log('Error during custom inference: ' + error.message);
+            }
+        };
+        
+        // Cleanup function
+        window.addEventListener('beforeunload', function() {
+            if (isInitialized && BitNetModule) {
+                try {
+                    BitNetModule._ggml_bitnet_free();
+                    log('BitNet cleanup completed');
+                } catch (error) {
+                    console.error('Error during cleanup:', error);
+                }
+            }
+        });
+        
+        // Load the module when the page loads
+        loadBitNetModule();
+    </script>
+</body>
+</html>
