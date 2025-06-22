@@ -35,8 +35,8 @@
             
             <div class="input-section">
                 <label for="model-path">Model Path:</label>
-                <input type="text" id="model-path" value="/models/ggml-model-i2_s.gguf" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                <span class="note">Default: <code>/models/ggml-model-i2_s.gguf</code> (leading slash required for your environment)</span>
+                <input type="text" id="model-path" value="/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                <span class="note">Default: <code>/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf</code> (BitNet 1.58B 2B model)</span>
                 <button id="load-model" disabled>Load Model</button>
                 <div id="load-status" style="margin: 10px 0;"></div>
                 
@@ -93,6 +93,6 @@
         <div id="output">Loading module...</div>
     </div>
 
-    <script type="module" src="example/main.js"></script>
+    <script type="module" src="src/bitnet_main.js"></script>
 </body>
 </html>
