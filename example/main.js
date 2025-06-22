@@ -227,34 +227,67 @@ function transformTensor(tensorData) {
     }
 }
 
-// Function to load a model file
+// Function to load a model file (auto-convert GGUF to flat binary if needed)
 async function loadModelFile(modelPath) {
     const outputElement = document.getElementById('output');
     outputElement.innerHTML += `Loading model from ${modelPath}...<br>`;
-    
     try {
         const response = await fetch(modelPath);
         if (!response.ok) {
             throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
         }
-        
         const arrayBuffer = await response.arrayBuffer();
         outputElement.innerHTML += `Model loaded, size: ${(arrayBuffer.byteLength / (1024 * 1024)).toFixed(2)} MB<br>`;
-        
-        // Allocate memory in the WASM heap for the model data
-        const modelDataPtr = wasmModule._malloc(arrayBuffer.byteLength);
-        
-        // Copy the model data to the WASM heap
-        const modelDataHeap = new Uint8Array(wasmModule.HEAPU8.buffer, modelDataPtr, arrayBuffer.byteLength);
-        modelDataHeap.set(new Uint8Array(arrayBuffer));
-        
-        outputElement.innerHTML += `Model data copied to WASM heap<br>`;
-        
-        return {
-            ptr: modelDataPtr,
-            size: arrayBuffer.byteLength,
-            free: () => wasmModule._free(modelDataPtr)
-        };
+
+        // Check file extension
+        const ext = modelPath.split('.').pop().toLowerCase();
+        if (ext === 'bin') {
+            // Flat binary, just copy to WASM
+            if (!wasmModule.HEAPU8 || !wasmModule.HEAPU8.buffer) {
+                throw new Error("WASM memory not available. Module not initialized?");
+            }
+            const modelDataPtr = wasmModule._malloc(arrayBuffer.byteLength);
+            if (!modelDataPtr) {
+                throw new Error("Failed to allocate memory in WASM heap for model data.");
+            }
+            const modelDataHeap = new Uint8Array(wasmModule.HEAPU8.buffer, modelDataPtr, arrayBuffer.byteLength);
+            modelDataHeap.set(new Uint8Array(arrayBuffer));
+            outputElement.innerHTML += `Model data copied to WASM heap<br>`;
+            return {
+                ptr: modelDataPtr,
+                size: arrayBuffer.byteLength,
+                free: () => wasmModule._free(modelDataPtr)
+            };
+        } else if (ext === 'gguf') {
+            // GGUF: convert to flat binary in WASM
+            if (typeof wasmModule._gguf_to_flat !== 'function') {
+                throw new Error('WASM gguf_to_flat function not found. Rebuild WASM with GGUF support.');
+            }
+            // Allocate GGUF buffer in WASM
+            const ggufPtr = wasmModule._malloc(arrayBuffer.byteLength);
+            wasmModule.HEAPU8.set(new Uint8Array(arrayBuffer), ggufPtr);
+            // Guess output buffer size (2x input size)
+            const flatCapacity = arrayBuffer.byteLength * 2;
+            const flatPtr = wasmModule._malloc(flatCapacity);
+            // Call conversion
+            const flatSize = wasmModule._gguf_to_flat(ggufPtr, arrayBuffer.byteLength, flatPtr, flatCapacity);
+            if (flatSize <= 0) {
+                wasmModule._free(ggufPtr);
+                wasmModule._free(flatPtr);
+                throw new Error('GGUF to flat conversion failed in WASM.');
+            }
+            outputElement.innerHTML += `GGUF converted to flat binary in WASM (${flatSize} bytes)<br>`;
+            // Free GGUF buffer
+            wasmModule._free(ggufPtr);
+            // Return flat buffer pointer
+            return {
+                ptr: flatPtr,
+                size: flatSize,
+                free: () => wasmModule._free(flatPtr)
+            };
+        } else {
+            throw new Error('Unsupported model file type: ' + ext);
+        }
     } catch (error) {
         outputElement.innerHTML += `Error loading model: ${error.message}<br>`;
         console.error('Error loading model:', error);
@@ -266,28 +299,37 @@ async function loadModelFile(modelPath) {
 function runModelInference(modelData, inputText) {
     const outputElement = document.getElementById('output');
     outputElement.innerHTML += `Running inference with input: "${inputText}"<br>`;
-    
     try {
-        // For demonstration purposes, we'll just show that we've loaded the model
-        // In a real implementation, we would:
-        // 1. Tokenize the input text
-        // 2. Create input tensors
-        // 3. Run the model forward pass
-        // 4. Process the output
-        
-        // Simulate tokenization by converting to simple character codes
+        if (!wasmModule.HEAP32 || !wasmModule.HEAP32.buffer) {
+            throw new Error("WASM HEAP32 not available. Check build flags and exports.");
+        }
+        // Tokenize input as int32 tokens (char codes for demo)
         const tokens = Array.from(inputText).map(c => c.charCodeAt(0));
         outputElement.innerHTML += `Tokenized input (${tokens.length} tokens): ${tokens.slice(0, 10).join(', ')}...<br>`;
-        
-        // Simulate running the model
-        outputElement.innerHTML += `Model size: ${(modelData.size / (1024 * 1024)).toFixed(2)} MB<br>`;
-        outputElement.innerHTML += `Running BitNet inference (simulated)...<br>`;
-        
-        // In a real implementation, we would call the appropriate WASM functions here
-        
-        // Simulate output generation
-        const outputText = `This is a simulated response from the BitNet model based on your input: "${inputText}". In a real implementation, we would process the model's output tokens and generate text.`;
-        
+        // Allocate input and output buffers in WASM
+        const inputBytes = tokens.length * 4;
+        const inputPtr = wasmModule._malloc(inputBytes);
+        const outputMaxTokens = 64;
+        const outputBytes = outputMaxTokens * 4;
+        const outputPtr = wasmModule._malloc(outputBytes);
+        // Copy input tokens to WASM
+        new Int32Array(wasmModule.HEAP32.buffer, inputPtr, tokens.length).set(tokens);
+        // Call WASM inference function
+        const nOut = wasmModule._bitnet_wasm_infer(
+            modelData.ptr,
+            inputPtr,
+            tokens.length,
+            outputPtr,
+            outputMaxTokens
+        );
+        // Read output tokens from WASM
+        const outTokens = Array.from(new Int32Array(wasmModule.HEAP32.buffer, outputPtr, nOut));
+        // Free WASM memory
+        wasmModule._free(inputPtr);
+        wasmModule._free(outputPtr);
+        outputElement.innerHTML += `WASM inference returned ${nOut} tokens: ${outTokens.slice(0, 10).join(', ')}...<br>`;
+        // Convert output tokens to string (char codes for demo)
+        const outputText = String.fromCharCode(...outTokens);
         return outputText;
     } catch (error) {
         outputElement.innerHTML += `Error running inference: ${error.message}<br>`;
@@ -298,19 +340,26 @@ function runModelInference(modelData, inputText) {
 
 // This function will be called when the WASM module is loaded and initialized
 function onWasmInitialized(wasmModuleInstance) {
-    console.log('BitNet WASM Module Initialized and Ready.');
     wasmModule = wasmModuleInstance;
-    
+    // Wait for Emscripten runtime to be ready
+    if (wasmModule.onRuntimeInitialized) {
+        wasmModule.onRuntimeInitialized = () => {
+            finishWasmInit();
+        };
+    } else {
+        // If already initialized, just proceed
+        finishWasmInit();
+    }
+}
+
+function finishWasmInit() {
     const outputElement = document.getElementById('output');
     const statusElement = document.getElementById('status');
-    
     outputElement.innerHTML = 'BitNet WASM Module Initialized and Ready.<br>';
-    
     if (statusElement) {
         statusElement.textContent = 'WASM module initialized. Ready to use BitNet functions.';
         statusElement.classList.add('success');
     }
-
     // Check available functions
     const availableFunctions = [];
     if (typeof wasmModule._ggml_init === 'function') availableFunctions.push('_ggml_init');
@@ -318,16 +367,12 @@ function onWasmInitialized(wasmModuleInstance) {
     if (typeof wasmModule._ggml_bitnet_free === 'function') availableFunctions.push('_ggml_bitnet_free');
     if (typeof wasmModule._ggml_bitnet_mul_mat_task_compute === 'function') availableFunctions.push('_ggml_bitnet_mul_mat_task_compute');
     if (typeof wasmModule._ggml_bitnet_transform_tensor === 'function') availableFunctions.push('_ggml_bitnet_transform_tensor');
-    
     console.log('Available WASM functions:', availableFunctions);
     outputElement.innerHTML += `Available WASM functions: ${availableFunctions.join(', ')}<br>`;
-
     // Initialize BitNet
     try {
         console.log('Initializing BitNet...');
         outputElement.innerHTML += 'Initializing BitNet...<br>';
-        
-        // Initialize the WASM module
         if (typeof wasmModule._ggml_init === 'function') {
             wasmModule._ggml_init(0);
             console.log('GGML initialized');
@@ -335,14 +380,12 @@ function onWasmInitialized(wasmModuleInstance) {
             console.warn('_ggml_init function not found, skipping initialization');
             outputElement.innerHTML += 'Warning: _ggml_init function not found, skipping initialization<br>';
         }
-        
         if (typeof wasmModule._ggml_bitnet_init === 'function') {
             wasmModule._ggml_bitnet_init();
             console.log('BitNet initialized');
         } else {
             throw new Error('_ggml_bitnet_init function not found');
         }
-        
         console.log('BitNet initialized successfully.');
         outputElement.innerHTML += 'BitNet initialized successfully.<br>';
     } catch (e) {
@@ -354,11 +397,11 @@ function onWasmInitialized(wasmModuleInstance) {
         }
         return;
     }
-    
-    // Set up event listeners for the demo buttons
     setupMatrixMultiplicationDemo();
     setupTensorTransformationDemo();
     setupModelInferenceDemo();
+    const loadButton = document.getElementById('load-model');
+    if (loadButton) loadButton.disabled = false;
 }
 
 // Set up the matrix multiplication demo

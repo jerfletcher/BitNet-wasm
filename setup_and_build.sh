@@ -57,7 +57,7 @@ fi
 
 # Install Python dependencies for model downloading (optional)
 echo "Installing Python dependencies for model downloading..."
-pip3 install huggingface_hub
+pip3 install --break-system-packages huggingface_hub
 
 # Download a sample BitNet model if not already downloaded
 MODEL_PATH="models/ggml-model-i2_s.gguf"

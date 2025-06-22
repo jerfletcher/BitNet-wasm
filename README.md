@@ -254,3 +254,65 @@ The example demonstrates:
 
 **Note:** While the matrix multiplication and tensor transformation demos perform actual computations using the implemented BitNet functions, the model inference demo currently simulates the inference process. Full model inference requires implementing the additional components described in the "Next Steps" section.
 
+## Native GGUF-to-Flat Conversion Test (C++/WASM)
+
+This project includes a C++ parser and converter for BitNet GGUF models, used both in WASM and as a native test. This is required to run real BitNet models in the browser or natively.
+
+### How to Run the Native Test
+
+1. Build the test program:
+   ```bash
+   g++ -Iinclude -o test_gguf_to_flat src/test_gguf_to_flat.cpp src/ggml-bitnet-lut.cpp
+   ```
+2. Run the test with a GGUF model:
+   ```bash
+   ./test_gguf_to_flat models/ggml-model-i2_s.gguf out.flat
+   ```
+   This will attempt to convert the GGUF model to a flat binary file (`out.flat`).
+   The program prints detailed debug output about the GGUF parsing process.
+
+### Current Status and Troubleshooting
+- The parser reads the GGUF header and kv pairs, robustly skipping known types.
+- If it encounters an unknown kv type, it breaks out of the kv loop and assumes the tensor section starts.
+- In the current BitNet GGUF file, after about 24 kvs, a kv with an unknown type (e.g., type=2 for key `token_embd.weight`) is encountered. The parser then tries to parse the tensor section.
+- However, the next bytes do not correspond to a valid tensor section (the name length is implausible, e.g., a huge number), so tensor parsing aborts.
+- No tensors are parsed, and the conversion fails with `tok_embeddings.weight not found or wrong type`.
+
+**This means the parser desynchronizes at custom kv types.**
+
+#### To continue troubleshooting:
+- Inspect the bytes at the kv/tensor boundary in the GGUF file to determine the correct way to skip unknown kv types.
+- Compare with the Python GGUF parser or BitNet's own conversion scripts in `3rdparty/BitNet/utils/` to see how they handle these kvs.
+- Adjust the C++ parser to either:
+  - Correctly skip unknown/custom kv types (by reading the correct length and skipping), or
+  - Use a more robust heuristic to detect the start of the tensor section.
+- Add more debug prints for the raw bytes at the kv/tensor boundary to help diagnose the issue.
+
+See `README_native_test.md` for more details and troubleshooting steps.
+
+---
+
+## Project Status and What Remains
+
+- **WASM pipeline:**
+  - Matrix multiplication and tensor transformation are fully functional in the browser.
+  - Model loading and GGUF-to-flat conversion logic is implemented, but full model inference is not yet complete.
+  - The JS loader can call the WASM GGUF-to-flat converter, but the parser needs to be fixed for some BitNet GGUF files.
+
+- **Native pipeline:**
+  - The native test for GGUF-to-flat conversion is implemented and debuggable.
+  - The parser currently fails at custom kv types in some BitNet GGUF files (see above).
+
+- **What remains to be implemented:**
+  - Fix the GGUF parser to robustly handle all kv types and correctly find the tensor section for all BitNet GGUF files.
+  - Complete the forward pass and output processing for real model inference in both WASM and native.
+  - Add a tokenizer and output-to-text logic for end-to-end text generation.
+  - Improve error handling, documentation, and add more usage examples.
+
+**Summary:**
+- The project supports BitNet quantized ops and model loading in WASM, and can convert models natively (with caveats).
+- The GGUF-to-flat parser is the main remaining blocker for full model inference.
+- See `README_native_test.md` for the latest troubleshooting state and how to continue development.
+
+---
+

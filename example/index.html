@@ -36,7 +36,8 @@
             <div class="input-section">
                 <label for="model-path">Model Path:</label>
                 <input type="text" id="model-path" value="/models/ggml-model-i2_s.gguf" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                <button id="load-model">Load Model</button>
+                <span class="note">Default: <code>/models/ggml-model-i2_s.gguf</code> (leading slash required for your environment)</span>
+                <button id="load-model" disabled>Load Model</button>
                 <div id="load-status" style="margin: 10px 0;"></div>
                 
                 <label for="inference-input">Input Text:</label>
