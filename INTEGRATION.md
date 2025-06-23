@@ -4,13 +4,12 @@ This guide explains how to integrate BitNet-WASM into your own web applications 
 
 ## Installation Methods
 
-### Method 1: NPM Package (Recommended)
+### Method 1: Direct Download (Recommended)
 
-Install the published NPM package:
-
-```bash
-npm install bitnet-wasm
-```
+Download the latest release files from [GitHub Releases](https://github.com/jerfletcher/BitNet-wasm/releases):
+- `bitnet.js` - JavaScript loader and interface
+- `bitnet.wasm` - WebAssembly module
+- `bitnet.d.ts` - TypeScript definitions
 
 ### Method 2: CDN (jsDelivr)
 
@@ -18,17 +17,20 @@ Use the CDN version directly in your HTML:
 
 ```html
 <script type="module">
-  import BitNetModule from 'https://cdn.jsdelivr.net/npm/bitnet-wasm@latest/bitnet.js';
+  import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
   // Your code here
 </script>
 ```
 
-### Method 3: GitHub Releases
+### Method 3: Clone Repository
 
-Download the latest release files from [GitHub Releases](https://github.com/jerfletcher/BitNet-wasm/releases):
-- `bitnet.js` - JavaScript loader
-- `bitnet.wasm` - WebAssembly module
-- `bitnet.d.ts` - TypeScript definitions
+Clone the repository and build from source:
+
+```bash
+git clone --recursive https://github.com/jerfletcher/BitNet-wasm.git
+cd BitNet-wasm
+./setup_and_build.sh
+```
 
 ## Basic Integration
 
@@ -52,7 +54,7 @@ Download the latest release files from [GitHub Releases](https://github.com/jerf
 
 ```javascript
 // app.js
-import BitNetModule from './bitnet.js'; // or from 'bitnet-wasm' if using npm
+import BitNetModule from './bitnet.js'; // or from CDN
 
 async function initBitNet() {
     try {
@@ -258,13 +260,14 @@ function performMatrixMultiplication(bitnet, matrixA, matrixB, rows, cols) {
 
 ## TypeScript Support
 
-If you're using TypeScript, the package includes type definitions:
+If you're using TypeScript, download the `bitnet.d.ts` file and reference it:
 
 ```typescript
-import BitNetModule, { BitNetModule as BitNetModuleType } from 'bitnet-wasm';
+/// <reference path="./bitnet.d.ts" />
+import BitNetModule from './bitnet.js';
 
 class BitNetWrapper {
-    private module: BitNetModuleType | null = null;
+    private module: BitNetModule | null = null;
     
     async initialize(): Promise<void> {
         this.module = await BitNetModule();
@@ -321,7 +324,7 @@ class BitNetWrapper {
 
 ```jsx
 import React, { useState, useEffect } from 'react';
-import BitNetModule from 'bitnet-wasm';
+import BitNetModule from './bitnet.js';
 
 function BitNetComponent() {
     const [bitnet, setBitnet] = useState(null);
@@ -378,7 +381,7 @@ export default BitNetComponent;
 </template>
 
 <script>
-import BitNetModule from 'bitnet-wasm';
+import BitNetModule from './bitnet.js';
 
 export default {
   name: 'BitNetComponent',
@@ -435,7 +438,7 @@ async function useBitNet() {
 
 ```javascript
 // worker.js
-import BitNetModule from 'bitnet-wasm';
+import BitNetModule from './bitnet.js';
 
 let bitnet = null;
 

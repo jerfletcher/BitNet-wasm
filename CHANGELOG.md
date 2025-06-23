@@ -10,15 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **GitHub Actions CI/CD Pipeline** - Automated build, test, and deployment workflow
   - Automatic WASM compilation on every push
-  - NPM package publishing on tagged releases
+  - GitHub releases with compiled artifacts
   - GitHub Pages deployment for live demo
-  - Artifact generation for releases
-- **NPM Package Support** - BitNet-WASM is now available as an NPM package
+  - CDN distribution via jsDelivr
+- **Release Distribution** - BitNet-WASM is now easily distributable
   - TypeScript definitions included
   - ES6 module support
-  - CDN distribution via jsDelivr
+  - Multiple installation methods
 - **Comprehensive Integration Guide** - Complete documentation for using BitNet-WASM in other projects
-  - Installation methods (NPM, CDN, GitHub releases)
+  - Installation methods (Direct download, CDN, GitHub releases)
   - Basic and advanced integration patterns
   - TypeScript support documentation
   - React and Vue.js integration examples
@@ -37,13 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced README with integration information
 
 ### Changed
-- **Updated README.md** - Added sections for NPM usage, CDN integration, and live demo links
+- **Updated README.md** - Added sections for direct download, CDN integration, and live demo links
 - **Enhanced Documentation** - Improved clarity and added more examples throughout
 
 ### Infrastructure
 - **Automated Releases** - GitHub Actions automatically creates releases with compiled artifacts
 - **Live Demo Deployment** - Automatic deployment to GitHub Pages on main branch updates
-- **Package Distribution** - Automated publishing to NPM registry for tagged releases
+- **CDN Distribution** - Automatic availability via jsDelivr CDN for easy integration
 
 ## [1.0.0] - 2024-01-XX
 
@@ -87,15 +87,13 @@ git pull origin main
 ./setup_and_build.sh
 ```
 
-#### NPM Package
-```bash
-npm update bitnet-wasm
-```
+#### Direct Download
+Download the latest files from [GitHub Releases](https://github.com/jerfletcher/BitNet-wasm/releases)
 
 #### CDN
 Update your import URL to use the latest version:
 ```javascript
-import BitNetModule from 'https://cdn.jsdelivr.net/npm/bitnet-wasm@latest/bitnet.js';
+import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
 ```
 
 ### Breaking Changes

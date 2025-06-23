@@ -22,7 +22,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        registry-url: 'https://registry.npmjs.org'
         
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -72,8 +71,8 @@ jobs:
         cp README.md dist/
         cp LICENSE dist/
         
-        # Create package.json for npm publishing
-        cat > dist/package.json << EOF
+        # Create release info file
+        cat > dist/release-info.json << EOF
         {
           "name": "bitnet-wasm",
           "version": "1.0.0",
@@ -87,9 +86,6 @@ jobs:
             "README.md",
             "LICENSE"
           ],
-          "scripts": {
-            "test": "echo \\"Error: no test specified\\" && exit 1"
-          },
           "keywords": [
             "bitnet",
             "webassembly",
@@ -114,27 +110,26 @@ jobs:
         
         # Create TypeScript definitions
         cat > dist/bitnet.d.ts << EOF
-        declare module 'bitnet-wasm' {
-          interface BitNetModule {
-            _bitnet_init(): void;
-            _bitnet_load_model(dataPtr: number, size: number): number;
-            _bitnet_inference_run(inputPtr: number, outputPtr: number, maxLen: number): number;
-            _bitnet_get_model_info(vocabPtr: number, embdPtr: number, layerPtr: number): void;
-            _bitnet_is_model_loaded(): number;
-            _bitnet_free_model(): void;
-            _malloc(size: number): number;
-            _free(ptr: number): void;
-            HEAPU8: Uint8Array;
-            HEAPF32: Float32Array;
-            HEAP8: Int8Array;
-            HEAP32: Int32Array;
-            writeStringToMemory(str: string, ptr: number): void;
-            lengthBytesUTF8(str: string): number;
-            stringToUTF8(str: string, ptr: number, maxBytes: number): void;
-          }
-          
-          export default function BitNetModule(): Promise<BitNetModule>;
+        interface BitNetModule {
+          _bitnet_init(): void;
+          _bitnet_load_model(dataPtr: number, size: number): number;
+          _bitnet_inference_run(inputPtr: number, outputPtr: number, maxLen: number): number;
+          _bitnet_get_model_info(vocabPtr: number, embdPtr: number, layerPtr: number): void;
+          _bitnet_is_model_loaded(): number;
+          _bitnet_free_model(): void;
+          _malloc(size: number): number;
+          _free(ptr: number): void;
+          HEAPU8: Uint8Array;
+          HEAPF32: Float32Array;
+          HEAP8: Int8Array;
+          HEAP32: Int32Array;
+          writeStringToMemory(str: string, ptr: number): void;
+          lengthBytesUTF8(str: string): number;
+          stringToUTF8(str: string, ptr: number, maxBytes: number): void;
         }
+        
+        declare function BitNetModule(): Promise<BitNetModule>;
+        export default BitNetModule;
         EOF
         
     - name: Upload build artifacts
@@ -150,8 +145,8 @@ jobs:
         files: |
           dist/bitnet.js
           dist/bitnet.wasm
-          dist/package.json
           dist/bitnet.d.ts
+          dist/release-info.json
         body: |
           ## BitNet-WASM Release
           
@@ -160,23 +155,29 @@ jobs:
           ### Files:
           - `bitnet.js` - JavaScript loader and interface
           - `bitnet.wasm` - WebAssembly module
-          - `package.json` - NPM package configuration
           - `bitnet.d.ts` - TypeScript definitions
+          - `release-info.json` - Release metadata
           
           ### Usage:
-          See the [Integration Guide](https://github.com/jerfletcher/BitNet-wasm/blob/main/INTEGRATION.md) for instructions on how to use this in your project.
+          
+          **Direct Download:**
+          Download the files above and include them in your project.
+          
+          **CDN (jsDelivr):**
+          ```javascript
+          import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
+          ```
+          
+          **GitHub Pages Demo:**
+          Try the live demo at: https://jerfletcher.github.io/BitNet-wasm
+          
+          See the [Integration Guide](https://github.com/jerfletcher/BitNet-wasm/blob/main/INTEGRATION.md) for complete instructions.
         draft: false
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Publish to NPM
-      if: startsWith(github.ref, 'refs/tags/v')
-      run: |
-        cd dist
-        npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
         
   deploy-pages:
     if: github.ref == 'refs/heads/main'

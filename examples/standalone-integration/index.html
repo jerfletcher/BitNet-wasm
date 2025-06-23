@@ -105,9 +105,9 @@
         
         <div class="installation-info">
             <h3>📦 How to use this in your project:</h3>
-            <p><strong>NPM:</strong> <code>npm install bitnet-wasm</code></p>
-            <p><strong>CDN:</strong> <code>import BitNetModule from 'https://cdn.jsdelivr.net/npm/bitnet-wasm@latest/bitnet.js'</code></p>
-            <p><strong>GitHub:</strong> Download from <a href="https://github.com/jerfletcher/BitNet-wasm/releases">releases</a></p>
+            <p><strong>Direct Download:</strong> Download files from <a href="https://github.com/jerfletcher/BitNet-wasm/releases">GitHub releases</a></p>
+            <p><strong>CDN:</strong> <code>import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js'</code></p>
+            <p><strong>Clone:</strong> <code>git clone --recursive https://github.com/jerfletcher/BitNet-wasm.git</code></p>
         </div>
         
         <div id="status" class="status loading">Initializing BitNet-WASM...</div>
@@ -175,9 +175,10 @@
             try {
                 updateStatus('Loading BitNet-WASM module...', 'loading');
                 
-                // In a real project, you would import from your package:
-                // import BitNetModule from 'bitnet-wasm';
-                // For this demo, we'll simulate loading from CDN
+                // In a real project, you would import from your files:
+                // import BitNetModule from './bitnet.js';
+                // Or from CDN: import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
+                // For this demo, we'll simulate loading
                 
                 // Simulate module loading (replace with actual import)
                 await new Promise(resolve => setTimeout(resolve, 1000));

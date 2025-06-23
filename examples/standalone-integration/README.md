@@ -26,20 +26,22 @@ Simply open `index.html` in a web browser to see the integration example in acti
 
 1. **Choose your installation method:**
 
-   **NPM Package:**
-   ```bash
-   npm install bitnet-wasm
-   ```
+   **Direct Download:**
+   Download `bitnet.js`, `bitnet.wasm`, and `bitnet.d.ts` from the [releases page](https://github.com/jerfletcher/BitNet-wasm/releases).
 
    **CDN:**
    ```html
    <script type="module">
-     import BitNetModule from 'https://cdn.jsdelivr.net/npm/bitnet-wasm@latest/bitnet.js';
+     import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
    </script>
    ```
 
-   **GitHub Releases:**
-   Download `bitnet.js` and `bitnet.wasm` from the [releases page](https://github.com/jerfletcher/BitNet-wasm/releases).
+   **Clone Repository:**
+   ```bash
+   git clone --recursive https://github.com/jerfletcher/BitNet-wasm.git
+   cd BitNet-wasm
+   ./setup_and_build.sh
+   ```
 
 2. **Copy the integration code:**
 
@@ -56,7 +58,7 @@ Simply open `index.html` in a web browser to see the integration example in acti
 ### Initialization
 
 ```javascript
-import BitNetModule from 'bitnet-wasm';
+import BitNetModule from './bitnet.js';
 
 async function initBitNet() {
     const bitnet = await BitNetModule();

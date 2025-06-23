@@ -269,17 +269,18 @@ allocateString(str), readString(ptr), parseFloatArray(text)
 
 ## Using BitNet-WASM in Your Project
 
-### 📦 NPM Package
+### 📦 Direct Download
 
-```bash
-npm install bitnet-wasm
-```
+Download the latest release files from [GitHub Releases](https://github.com/jerfletcher/BitNet-wasm/releases):
+- `bitnet.js` - JavaScript loader and interface
+- `bitnet.wasm` - WebAssembly module
+- `bitnet.d.ts` - TypeScript definitions
 
-### 🌐 CDN
+### 🌐 CDN (jsDelivr)
 
 ```html
 <script type="module">
-  import BitNetModule from 'https://cdn.jsdelivr.net/npm/bitnet-wasm@latest/bitnet.js';
+  import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
   // Your code here
 </script>
 ```
@@ -289,7 +290,7 @@ npm install bitnet-wasm
 For complete integration instructions, examples, and best practices, see the **[Integration Guide](./INTEGRATION.md)**.
 
 The guide covers:
-- Installation methods (NPM, CDN, GitHub Releases)
+- Installation methods (Direct download, CDN, GitHub Releases)
 - Basic and advanced integration patterns
 - TypeScript support
 - React/Vue.js integration
@@ -301,9 +302,9 @@ The guide covers:
 
 This project uses GitHub Actions to automatically:
 - ✅ Build and test the WASM module on every push
-- 📦 Publish to NPM on tagged releases
+- 📦 Create GitHub releases with compiled artifacts
 - 🚀 Deploy live demo to GitHub Pages
-- 📋 Create GitHub releases with artifacts
+- 🌐 Enable CDN distribution via jsDelivr
 
 ### Live Demo
 
