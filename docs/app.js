@@ -3,8 +3,8 @@
 
 // Import BitNet-WASM module from CDN (for GitHub Pages demo)
 // In your own project, you would use a relative path like './bitnet.js'
-//import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
-import BitNetModule from './bitnet.js';
+import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
+// import BitNetModule from '../bitnet.js';
 // Initialize Dexie.js for IndexedDB model storage
 const db = new Dexie('BitNetModelsDB');
 db.version(1).stores({
