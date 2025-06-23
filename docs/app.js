@@ -73,6 +73,12 @@ async function initBitNet() {
         updateStatus('BitNet-WASM initialized successfully!', 'success');
         loadModelButton.disabled = false;
         
+        // Enable inference button (will run in demo mode if no model is loaded)
+        runInferenceButton.disabled = false;
+        
+        // Add note about demo mode
+        outputElement.textContent += 'Note: Inference will run in demo mode if no model is loaded.\n';
+        
         // Check IndexedDB cache
         updateDBStatus();
         
@@ -127,7 +133,6 @@ async function loadModel() {
     try {
         // Disable buttons during loading
         loadModelButton.disabled = true;
-        runInferenceButton.disabled = true;
         
         // Free previous model data if it exists
         if (modelData) {
@@ -153,8 +158,7 @@ async function loadModel() {
             // Load model from IndexedDB
             modelData = await loadModelFromArrayBuffer(cachedModel.data, modelUrl);
             
-            // Enable inference button
-            runInferenceButton.disabled = false;
+            // Enable load button
             loadModelButton.disabled = false;
             
             return;
@@ -173,7 +177,7 @@ async function loadModel() {
             // Fetch with progress tracking
             const response = await fetch(modelUrl);
             if (!response.ok) {
-                throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to fetch model: ${response.status}`);
             }
             
             const contentLength = response.headers.get('content-length');
@@ -235,9 +239,6 @@ async function loadModel() {
             // Update status
             updateLoadStatus('Model loaded successfully!', 'success');
             
-            // Enable inference button
-            runInferenceButton.disabled = false;
-            
         } catch (error) {
             // Hide progress bar on error
             progressContainer.style.display = 'none';
@@ -245,6 +246,9 @@ async function loadModel() {
             outputElement.textContent += `Error loading model: ${error.message}\n`;
             updateLoadStatus(`Error loading model: ${error.message}`, 'error');
             console.error('Error loading model:', error);
+            
+            // Add note about demo mode
+            outputElement.textContent += `You can still run inference in demo mode.\n`;
         }
         
     } catch (error) {
@@ -316,13 +320,45 @@ async function runInference() {
         return;
     }
     
-    if (!modelData) {
-        resultElement.textContent = 'No model loaded. Please load a model first.';
-        return;
-    }
-    
     try {
         resultElement.textContent = 'Running inference...';
+        
+        // Check if model is loaded
+        let isModelLoaded = false;
+        if (modelData) {
+            // Check if model is loaded in WASM
+            if (typeof bitnet._bitnet_is_model_loaded === 'function') {
+                isModelLoaded = bitnet._bitnet_is_model_loaded() === 1;
+            } else if (typeof bitnet._is_model_loaded === 'function') {
+                isModelLoaded = bitnet._is_model_loaded() === 1;
+            }
+        }
+        
+        // If no model is loaded, use demo mode
+        if (!isModelLoaded) {
+            outputElement.textContent += `No model loaded. Running in demo mode.\n`;
+            
+            // Simulate inference for demo purposes
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Generate a simulated response
+            const demoResponses = [
+                "is becoming increasingly efficient and accessible through innovations like BitNet's 2-bit quantization, which enables neural networks to run directly in web browsers with minimal resource requirements.",
+                "will be characterized by models that can run efficiently on edge devices. BitNet demonstrates this by using 2-bit quantization to dramatically reduce model size while maintaining reasonable performance.",
+                "depends on making powerful models accessible to everyone. BitNet's approach of running directly in the browser with WebAssembly shows how AI can become more democratized and privacy-preserving."
+            ];
+            
+            const randomResponse = demoResponses[Math.floor(Math.random() * demoResponses.length)];
+            const result = inputText + " " + randomResponse;
+            
+            // Display simulated result
+            resultElement.innerHTML = `<strong>Input:</strong>\n${inputText}\n\n<strong>Output (DEMO MODE):</strong>\n${result}\n\n<em>Note: This is a simulated response as no model is currently loaded.</em>`;
+            
+            // Enable the load model button with a note
+            updateLoadStatus('Please load a real model for actual inference', 'warning');
+            return;
+        }
+        
         outputElement.textContent += `Running inference with input: "${inputText.substring(0, 50)}${inputText.length > 50 ? '...' : ''}"\n`;
         
         // Allocate memory for input and output
