@@ -21,10 +21,27 @@ const outputElement = document.getElementById('output');
 const dbStatusElement = document.getElementById('db-status');
 const cacheDetailsElement = document.getElementById('cache-details');
 const loadModelButton = document.getElementById('load-model');
+let cachedModelSelect = document.getElementById('cached-model-select');
+if (!cachedModelSelect) {
+    cachedModelSelect = document.createElement('select');
+    cachedModelSelect.id = 'cached-model-select';
+    cachedModelSelect.style.marginLeft = '8px';
+    loadModelButton.parentNode.insertBefore(cachedModelSelect, loadModelButton);
+}
 const runInferenceButton = document.getElementById('run-inference');
 const loadStatusElement = document.getElementById('load-status');
 const progressContainer = document.querySelector('.progress-container');
 const progressBar = document.getElementById('download-progress');
+const saveProgressContainer = document.createElement('div');
+saveProgressContainer.className = 'progress-container';
+saveProgressContainer.style.display = 'none';
+const saveProgressBar = document.createElement('div');
+saveProgressBar.className = 'progress-bar';
+saveProgressBar.id = 'save-progress';
+saveProgressBar.style.width = '0%';
+saveProgressBar.textContent = '0%';
+saveProgressContainer.appendChild(saveProgressBar);
+progressContainer.parentNode.insertBefore(saveProgressContainer, progressContainer.nextSibling);
 
 // Tab functionality
 document.querySelectorAll('.tab').forEach(tab => {
@@ -123,7 +140,11 @@ function setupEventListeners() {
 
 // Load a model from URL with IndexedDB caching
 async function loadModel() {
-    const modelUrl = document.getElementById('model-url').value.trim();
+    let modelUrl = document.getElementById('model-url').value.trim();
+    if (cachedModelSelect && cachedModelSelect.value) {
+        modelUrl = cachedModelSelect.value;
+        document.getElementById('model-url').value = modelUrl;
+    }
     
     if (!modelUrl) {
         updateLoadStatus('Please enter a valid model URL', 'error');
@@ -148,19 +169,28 @@ async function loadModel() {
         // Extract model name from URL
         const modelName = modelUrl.split('/').pop();
         
-        // Check if model exists in IndexedDB
-        const cachedModel = await db.models.get({ url: modelUrl });
-        
-        if (cachedModel) {
-            outputElement.textContent += `Found cached model in IndexedDB: ${modelName} (${formatSize(cachedModel.size)})\n`;
+        // Check if model exists in IndexedDB (single or chunked)
+        let cachedModels = await db.models.where('url').startsWith(modelUrl).toArray();
+        if (cachedModels.length > 0) {
+            // Sort by part number if chunked
+            if (cachedModels.length > 1) {
+                cachedModels.sort((a, b) => {
+                    const getPart = url => parseInt((url.split('#part')[1] || '0'), 10);
+                    return getPart(a.url) - getPart(b.url);
+                });
+            }
+            // Combine chunks
+            let totalSize = cachedModels.reduce((sum, m) => sum + (m.data.byteLength || m.size || 0), 0);
+            let combined = new Uint8Array(totalSize);
+            let pos = 0;
+            for (const m of cachedModels) {
+                combined.set(new Uint8Array(m.data), pos);
+                pos += m.data.byteLength || m.size || 0;
+            }
+            outputElement.textContent += `Found cached model in IndexedDB: ${modelName} (${formatSize(totalSize)})\n`;
             updateLoadStatus('Using cached model from IndexedDB', 'success');
-            
-            // Load model from IndexedDB
-            modelData = await loadModelFromArrayBuffer(cachedModel.data, modelUrl);
-            
-            // Enable load button
+            modelData = await loadModelFromArrayBuffer(combined.buffer, modelUrl);
             loadModelButton.disabled = false;
-            
             return;
         }
         
@@ -208,34 +238,60 @@ async function loadModel() {
                 chunksAll.set(chunk, position);
                 position += chunk.length;
             }
-            
+
             const arrayBuffer = chunksAll.buffer;
             outputElement.textContent += `Model downloaded: ${formatSize(arrayBuffer.byteLength)}\n`;
-            
-            // Store in IndexedDB for future use
+
+
+            // Store in IndexedDB for future use (chunked save workaround)
             try {
-                await db.models.put({
-                    url: modelUrl,
-                    name: modelName,
-                    data: arrayBuffer,
-                    timestamp: new Date().getTime(),
-                    size: arrayBuffer.byteLength
-                });
-                outputElement.textContent += `Model saved to IndexedDB cache\n`;
-                
-                // Update DB status
+                // Save in 16MB chunks to avoid transaction abort
+                const CHUNK_SIZE = 16 * 1024 * 1024;
+                let totalParts = 1;
+                if (arrayBuffer.byteLength > CHUNK_SIZE) {
+                    totalParts = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE);
+                }
+                let offset = 0;
+                let part = 0;
+                if (totalParts > 1) {
+                    saveProgressContainer.style.display = 'block';
+                }
+                while (offset < arrayBuffer.byteLength) {
+                    const end = Math.min(offset + CHUNK_SIZE, arrayBuffer.byteLength);
+                    const chunkData = arrayBuffer.slice(offset, end);
+                    await db.models.put({
+                        url: totalParts > 1 ? `${modelUrl}#part${part}` : modelUrl,
+                        name: totalParts > 1 ? `${modelName} (part ${part})` : modelName,
+                        data: chunkData,
+                        timestamp: new Date().getTime(),
+                        size: chunkData.byteLength
+                    });
+                    part++;
+                    offset = end;
+                    if (totalParts > 1) {
+                        const percent = Math.round((part / totalParts) * 100);
+                        saveProgressBar.style.width = `${percent}%`;
+                        saveProgressBar.textContent = `${percent}%`;
+                    }
+                }
+                if (totalParts > 1) {
+                    outputElement.textContent += `Model saved to IndexedDB in ${part} parts\n`;
+                    saveProgressContainer.style.display = 'none';
+                } else {
+                    outputElement.textContent += `Model saved to IndexedDB cache\n`;
+                }
                 updateDBStatus();
             } catch (dbError) {
                 console.warn('Failed to cache model in IndexedDB:', dbError);
                 outputElement.textContent += `Warning: Could not cache model in IndexedDB: ${dbError.message}\n`;
             }
-            
+
             // Hide progress bar
             progressContainer.style.display = 'none';
-            
+
             // Load the model
             modelData = await loadModelFromArrayBuffer(arrayBuffer, modelUrl);
-            
+
             // Update status
             updateLoadStatus('Model loaded successfully!', 'success');
             
@@ -484,12 +540,26 @@ async function updateDBStatus() {
         if (count > 0) {
             const models = await db.models.toArray();
             totalSize = models.reduce((sum, model) => sum + (model.size || 0), 0);
-            
             dbStatusElement.textContent = `${count} model(s) in cache, total size: ${formatSize(totalSize)}`;
             dbStatusElement.className = 'success';
+            // Populate cached model select dropdown
+            const modelGroups = {};
+            models.forEach(model => {
+                const baseUrl = model.url.split('#part')[0];
+                if (!modelGroups[baseUrl]) modelGroups[baseUrl] = [];
+                modelGroups[baseUrl].push(model);
+            });
+            let options = '<option value="">-- Select cached model --</option>';
+            for (const baseUrl in modelGroups) {
+                const group = modelGroups[baseUrl];
+                const totalSize = group.reduce((sum, m) => sum + (m.size || 0), 0);
+                options += `<option value="${baseUrl}">${group[0].name.replace(/ \(part.*\)/, '')} (${formatSize(totalSize)})</option>`;
+            }
+            cachedModelSelect.innerHTML = options;
         } else {
             dbStatusElement.textContent = 'No models in cache';
             dbStatusElement.className = '';
+            if (cachedModelSelect) cachedModelSelect.innerHTML = '<option value="">-- No cached models --</option>';
         }
     } catch (error) {
         dbStatusElement.textContent = `Error checking cache: ${error.message}`;
@@ -509,18 +579,37 @@ async function viewCachedModels() {
             return;
         }
         
-        let details = 'Cached Models:\n\n';
-        
-        models.forEach((model, index) => {
-            const date = new Date(model.timestamp);
-            details += `${index + 1}. ${model.name}\n`;
-            details += `   URL: ${model.url}\n`;
-            details += `   Size: ${formatSize(model.size || 0)}\n`;
-            details += `   Cached: ${date.toLocaleString()}\n\n`;
+        // Group models by base URL (remove #partN)
+        const modelGroups = {};
+        models.forEach(model => {
+            const baseUrl = model.url.split('#part')[0];
+            if (!modelGroups[baseUrl]) modelGroups[baseUrl] = [];
+            modelGroups[baseUrl].push(model);
         });
-        
-        cacheDetailsElement.textContent = details;
+        let details = 'Cached Models:\n\n';
+        let idx = 1;
+        for (const baseUrl in modelGroups) {
+            const group = modelGroups[baseUrl];
+            // Sort by part
+            group.sort((a, b) => {
+                const getPart = url => parseInt((url.split('#part')[1] || '0'), 10);
+                return getPart(a.url) - getPart(b.url);
+            });
+            const totalSize = group.reduce((sum, m) => sum + (m.size || 0), 0);
+            const date = new Date(group[0].timestamp);
+            details += `${idx}. ${group[0].name.replace(/ \(part.*\)/, '')}\n`;
+            details += `   URL: ${baseUrl}\n`;
+            details += `   Size: ${formatSize(totalSize)}\n`;
+            details += `   Cached: ${date.toLocaleString()}\n`;
+            details += `   <button onclick="loadCachedModel('${baseUrl}')">Load</button>\n\n`;
+            idx++;
+        }
+        cacheDetailsElement.innerHTML = `<pre>${details}</pre>`;
         cacheDetailsElement.style.display = 'block';
+        window.loadCachedModel = async function(baseUrl) {
+            document.getElementById('model-url').value = baseUrl;
+            await loadModel();
+        };
         
     } catch (error) {
         cacheDetailsElement.textContent = `Error retrieving cached models: ${error.message}`;
@@ -533,8 +622,15 @@ async function viewCachedModels() {
 async function clearModelCache() {
     try {
         if (confirm('Are you sure you want to clear all cached models?')) {
+            dbStatusElement.textContent = 'Clearing cache...';
+            dbStatusElement.className = 'loading';
+            cacheDetailsElement.textContent = '';
+            cacheDetailsElement.style.display = 'none';
+            // Optionally show a spinner
+            dbStatusElement.innerHTML = '<span class="spinner" style="display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top:2px solid #333;border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px;"></span>Clearing cache...';
             await db.models.clear();
             dbStatusElement.textContent = 'Cache cleared successfully';
+            dbStatusElement.className = 'success';
             cacheDetailsElement.textContent = 'No cached models found.';
             cacheDetailsElement.style.display = 'block';
             updateDBStatus();
@@ -544,6 +640,10 @@ async function clearModelCache() {
         dbStatusElement.className = 'error';
         console.error('Error clearing cache:', error);
     }
+// Spinner animation CSS
+const style = document.createElement('style');
+style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+document.head.appendChild(style);
 }
 
 // Format file size

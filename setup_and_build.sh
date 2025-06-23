@@ -57,7 +57,7 @@ fi
 
 # Install Python dependencies for model downloading (optional)
 echo "Installing Python dependencies for model downloading..."
-pip3 install --break-system-packages huggingface_hub
+pip3 install huggingface_hub
 
 # Download the base BitNet model using the official Microsoft model
 MODEL_DIR="models/BitNet-b1.58-2B-4T"
