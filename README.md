@@ -267,6 +267,48 @@ allocateString(str), readString(ptr), parseFloatArray(text)
 - Advanced quantization modes
 - WebGPU acceleration
 
+## Using BitNet-WASM in Your Project
+
+### 📦 NPM Package
+
+```bash
+npm install bitnet-wasm
+```
+
+### 🌐 CDN
+
+```html
+<script type="module">
+  import BitNetModule from 'https://cdn.jsdelivr.net/npm/bitnet-wasm@latest/bitnet.js';
+  // Your code here
+</script>
+```
+
+### 📋 Integration Guide
+
+For complete integration instructions, examples, and best practices, see the **[Integration Guide](./INTEGRATION.md)**.
+
+The guide covers:
+- Installation methods (NPM, CDN, GitHub Releases)
+- Basic and advanced integration patterns
+- TypeScript support
+- React/Vue.js integration
+- Performance optimization
+- Error handling
+- Browser compatibility
+
+## Automated Builds & Releases
+
+This project uses GitHub Actions to automatically:
+- ✅ Build and test the WASM module on every push
+- 📦 Publish to NPM on tagged releases
+- 🚀 Deploy live demo to GitHub Pages
+- 📋 Create GitHub releases with artifacts
+
+### Live Demo
+
+Try the live demo at: **[https://jerfletcher.github.io/BitNet-wasm](https://jerfletcher.github.io/BitNet-wasm)**
+
 ## Contributing
 
 1. **Fork** the repository

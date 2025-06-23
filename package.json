@@ -1,0 +1,38 @@
+{
+  "name": "bitnet-wasm-dev",
+  "version": "1.0.0",
+  "description": "Development environment for BitNet-WASM",
+  "private": true,
+  "scripts": {
+    "build": "./build.sh",
+    "setup": "./setup_and_build.sh",
+    "serve": "python3 -m http.server 8000",
+    "test": "python3 -m http.server 8000 & sleep 2 && echo 'Open http://localhost:8000/test.html to run tests'",
+    "clean": "rm -f bitnet.js bitnet.wasm emcc_*.log",
+    "lint": "echo 'No linting configured yet'",
+    "format": "echo 'No formatting configured yet'"
+  },
+  "keywords": [
+    "bitnet",
+    "webassembly",
+    "wasm",
+    "neural-network",
+    "quantization",
+    "ai",
+    "machine-learning"
+  ],
+  "author": "jerfletcher",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jerfletcher/BitNet-wasm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jerfletcher/BitNet-wasm/issues"
+  },
+  "homepage": "https://github.com/jerfletcher/BitNet-wasm#readme",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
