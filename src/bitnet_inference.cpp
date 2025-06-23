@@ -11,45 +11,11 @@
 #include <emscripten/bind.h>
 #endif
 
-// GGUF file format structures
-struct gguf_header {
-    char magic[4];      // "GGUF"
-    uint32_t version;
-    uint64_t n_tensors;
-    uint64_t n_kv;
-};
-
-struct gguf_kv_pair {
-    std::string key;
-    uint32_t value_type;
-    std::vector<uint8_t> value_data;
-};
-
-struct gguf_tensor_info {
-    std::string name;
-    uint32_t n_dimensions;
-    std::vector<uint64_t> dimensions;
-    uint32_t type;
-    uint64_t offset;
-};
-
-// BitNet model structure
-struct BitNetModel {
-    std::vector<gguf_kv_pair> metadata;
-    std::vector<gguf_tensor_info> tensors;
-    std::vector<uint8_t> tensor_data;
-    bool loaded = false;
-    
-    // Model parameters
-    uint32_t vocab_size = 0;
-    uint32_t n_embd = 0;
-    uint32_t n_head = 0;
-    uint32_t n_layer = 0;
-    uint32_t n_ctx = 0;
-};
+// Shared BitNet model and GGUF structures
+#include "bitnet_inference.h"
 
 // Global model instance
-static BitNetModel g_model;
+BitNetModel g_model;
 
 // GGUF value types
 enum gguf_type {
@@ -129,6 +95,30 @@ bool parse_gguf_file(const uint8_t* file_data, size_t file_size, BitNetModel& mo
             
             // Read value based on type
             switch (kv.value_type) {
+                case GGUF_TYPE_UINT8: {
+                    uint8_t val = read_value<uint8_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_INT8: {
+                    int8_t val = read_value<int8_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_UINT16: {
+                    uint16_t val = read_value<uint16_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_INT16: {
+                    int16_t val = read_value<int16_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
                 case GGUF_TYPE_UINT32: {
                     uint32_t val = read_value<uint32_t>(data, remaining);
                     kv.value_data.resize(sizeof(val));
@@ -148,16 +138,46 @@ bool parse_gguf_file(const uint8_t* file_data, size_t file_size, BitNetModel& mo
                     }
                     break;
                 }
-                case GGUF_TYPE_STRING: {
-                    std::string val = read_string(data, remaining);
-                    kv.value_data.resize(val.size());
-                    std::memcpy(kv.value_data.data(), val.data(), val.size());
+                case GGUF_TYPE_INT32: {
+                    int32_t val = read_value<int32_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
                     break;
                 }
                 case GGUF_TYPE_FLOAT32: {
                     float val = read_value<float>(data, remaining);
                     kv.value_data.resize(sizeof(val));
                     std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_BOOL: {
+                    uint8_t val = read_value<uint8_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_UINT64: {
+                    uint64_t val = read_value<uint64_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_INT64: {
+                    int64_t val = read_value<int64_t>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_FLOAT64: {
+                    double val = read_value<double>(data, remaining);
+                    kv.value_data.resize(sizeof(val));
+                    std::memcpy(kv.value_data.data(), &val, sizeof(val));
+                    break;
+                }
+                case GGUF_TYPE_STRING: {
+                    std::string val = read_string(data, remaining);
+                    kv.value_data.resize(val.size());
+                    std::memcpy(kv.value_data.data(), val.data(), val.size());
                     break;
                 }
                 case GGUF_TYPE_ARRAY: {
@@ -174,6 +194,7 @@ bool parse_gguf_file(const uint8_t* file_data, size_t file_size, BitNetModel& mo
                             }
                             break;
                         case GGUF_TYPE_UINT32: element_size = 4; break;
+                        case GGUF_TYPE_INT32: element_size = 4; break;
                         case GGUF_TYPE_FLOAT32: element_size = 4; break;
                         default:
                             std::cerr << "Unsupported array type: " << array_type << std::endl;
@@ -270,7 +291,7 @@ std::string detokenize(const std::vector<int32_t>& tokens) {
 }
 
 // BitNet inference simulation
-std::vector<int32_t> bitnet_inference(const std::vector<int32_t>& input_tokens, int max_tokens = 32) {
+std::vector<int32_t> bitnet_inference(const std::vector<int32_t>& input_tokens, int max_tokens) {
     if (!g_model.loaded) {
         std::cerr << "Model not loaded" << std::endl;
         return {};

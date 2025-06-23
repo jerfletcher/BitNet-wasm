@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 echo "Building native BitNet inference test..."
 
 # Define source files and include directories
-BITNET_SOURCES="src/bitnet_minimal.cpp src/bitnet_inference_test.cpp"
+BITNET_SOURCES="src/bitnet_minimal.cpp src/bitnet_inference_test.cpp src/bitnet_inference.cpp"
 INCLUDE_DIRS="-Iinclude -I3rdparty/BitNet/include"
 
 # Output executable name
