@@ -1,6 +1,7 @@
 # Extensions
 
 *.a
+*.bak
 *.bat
 *.bin
 *.dll

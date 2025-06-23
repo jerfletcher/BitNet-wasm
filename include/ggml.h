@@ -2,19 +2,24 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Minimal GGML tensor structure for our implementation
+#define GGML_API
+
+// GGML tensor structure
 struct ggml_tensor {
     int64_t ne[4]; // dimensions
     void * data;   // data pointer
     void * extra;  // extra data
+    size_t nb[4];  // strides
+    int type;      // tensor type
 };
 
-// Minimal GGML type enum
+// GGML type enum including BitNet types
 enum ggml_type {
     GGML_TYPE_F32 = 0,
     GGML_TYPE_F16 = 1,
@@ -35,12 +40,15 @@ enum ggml_type {
     GGML_TYPE_I32 = 18,
     GGML_TYPE_COUNT = 19,
     GGML_TYPE_TL1 = 20,
+    GGML_TYPE_TL2 = 21,
+    GGML_TYPE_I2_S = 22,
 };
 
-// Minimal GGML API
-void ggml_init(void);
-int64_t ggml_nelements(const struct ggml_tensor * tensor);
-size_t ggml_row_size(enum ggml_type type, int64_t n);
+// GGML API functions
+GGML_API void ggml_init(void);
+GGML_API int64_t ggml_nelements(const struct ggml_tensor * tensor);
+GGML_API size_t ggml_row_size(enum ggml_type type, int64_t n);
+GGML_API size_t ggml_type_size(enum ggml_type type);
 
 #ifdef __cplusplus
 }
