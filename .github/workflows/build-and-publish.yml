@@ -75,7 +75,7 @@ jobs:
         cat > dist/release-info.json << EOF
         {
           "name": "bitnet-wasm",
-          "version": "0.1.0",
+          "version": "0.2.0",
           "description": "WebAssembly port of Microsoft's BitNet.cpp for efficient 1.58-bit neural network inference",
           "main": "bitnet.js",
           "types": "bitnet.d.ts",
