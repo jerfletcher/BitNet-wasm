@@ -206,12 +206,13 @@ jobs:
     - name: Create Pages content
       run: |
         mkdir -p pages
-        cp -r dist/example/* pages/
+        
+        # Copy the docs folder as the main site
+        cp -r docs/* pages/
+        
+        # Add the latest built files
         cp dist/bitnet.js pages/
         cp dist/bitnet.wasm pages/
-        
-        # Create index.html that shows the demo directly
-        cp dist/example/index.html pages/index.html
         
     - name: Upload Pages artifact
       uses: actions/upload-pages-artifact@v3.0.1
