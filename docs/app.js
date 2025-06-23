@@ -444,7 +444,13 @@ async function runInference() {
         // Read output from WASM memory
         let result = '';
         if (outputLength > 0) {
-            result = bitnet.UTF8ToString(outputPtr, outputLength);
+            const buffer = new Uint8Array(bitnet.HEAPU8.buffer, outputPtr, outputLength);
+            let str = '';
+            for (let i = 0; i < outputLength; i++) {
+                if (buffer[i] === 0) break;
+                str += String.fromCharCode(buffer[i]);
+            }
+            result = str;
         }
         
         // Free memory
