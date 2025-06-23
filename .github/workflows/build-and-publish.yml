@@ -14,22 +14,22 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         submodules: recursive
         
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v4.4.0
       with:
         node-version: '18'
         
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5.6.0
       with:
         python-version: '3.11'
         
     - name: Cache Emscripten SDK
-      uses: actions/cache@v3
+      uses: actions/cache@v4.2.3
       with:
         path: emsdk
         key: ${{ runner.os }}-emsdk-4.0.8
@@ -133,14 +133,14 @@ jobs:
         EOF
         
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: bitnet-wasm-dist
         path: dist/
         
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2.3.2
       with:
         files: |
           dist/bitnet.js
@@ -192,16 +192,16 @@ jobs:
       
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       
     - name: Download build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.3.0
       with:
         name: bitnet-wasm-dist
         path: dist/
         
     - name: Setup Pages
-      uses: actions/configure-pages@v3
+      uses: actions/configure-pages@v5.0.0
       
     - name: Create Pages content
       run: |
@@ -214,10 +214,10 @@ jobs:
         cp dist/example/index.html pages/index.html
         
     - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v2
+      uses: actions/upload-pages-artifact@v3.0.1
       with:
         path: pages/
         
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v2
+      uses: actions/deploy-pages@v4.0.5
