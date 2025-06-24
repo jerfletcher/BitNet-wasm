@@ -206,9 +206,9 @@ jobs:
     - name: Create Pages content
       run: |
         mkdir -p pages
-        
-        # Copy the docs folder as the main site
-        cp -r docs/* pages/
+
+        # Copy the examples folder as the main site
+        cp -r examples/standalone-integration/* pages/
         
         # Add the latest built files
         cp dist/bitnet.js pages/

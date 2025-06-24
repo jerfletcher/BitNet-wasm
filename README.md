@@ -68,34 +68,6 @@ python3 -m http.server 8000
 # Open browser to http://localhost:8000/test.html
 ```
 
-## Live Demo Results
-
-### 🎯 **Model Inference Demo**
-```
-Input: "Microsoft Corporation is an American multinational corporation and technology company headquartered in Redmond, Washington."
-
-BitNet Output: "Microsoft Corporation is an American multinational corporation and technology company headquartered in Redmond, Washington. - BitNet inference working successfully!"
-```
-
-### 🔢 **Matrix Multiplication Demo**
-```
-Input Matrix A: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0] (3x3)
-Weight Matrix B: [0.1, 0.2, 0.3, -0.1, -0.2, -0.3, 0.4, 0.5, 0.6] (3x3)
-
-BitNet Quantized Result:
-1.0000  1.0000  1.0000
-2.5000  2.5000  2.5000  
-4.0000  4.0000  4.0000
-```
-
-### 🎛️ **Tensor Quantization Demo**
-```
-Original: [0.5, -0.3, 0.1, 0.0, 0.7, -0.2, 0.4, -0.6]
-Quantized (1.58-bit): [1, -1, 0, 0, 1, 0, 1, -1]
-Dequantized: [0.7, -0.7, 0.0, 0.0, 0.7, 0.0, 0.7, -0.7]
-Scale Factor: 0.7000
-```
-
 ## Technical Implementation
 
 ### BitNet Inference Engine
@@ -132,26 +104,6 @@ const outputLen = bitnet._bitnet_inference_run(inputPtr, outputPtr, maxLen);
 - **Memory Management**: Efficient loading of 1GB+ models
 - **BitNet Format**: Compatible with BitNet GGUF models
 
-## Project Structure
-
-```
-BitNet-wasm/
-├── src/
-│   ├── bitnet_simple.cpp      # Main BitNet WASM implementation
-│   ├── bitnet_main.js         # JavaScript interface and demos
-│   └── bitnet_inference_test.cpp # Native testing
-├── models/
-│   └── BitNet-b1.58-2B-4T/    # Downloaded BitNet model
-│       └── ggml-model-i2_s.gguf
-├── 3rdparty/
-│   ├── BitNet/                # Original BitNet.cpp (source)
-│   ├── llama.cpp/             # llama.cpp framework (foundation)
-│   └── llama-cpp-wasm/        # WASM patterns (model)
-├── test.html                  # Complete demo interface
-├── build.sh                   # WASM build script
-└── setup_and_build.sh         # Full setup automation
-```
-
 ## Build System
 
 ### Automated Setup
@@ -167,13 +119,6 @@ BitNet-wasm/
 ```bash
 # After initial setup
 ./build.sh
-```
-
-### Native Testing
-```bash
-# Build and test native version
-./build_native_test.sh
-./bitnet_inference_test models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf "Hello"
 ```
 
 ## Performance Characteristics
@@ -316,18 +261,6 @@ Try the live demo at: **[https://jerfletcher.github.io/BitNet-wasm](https://jerf
 2. **Create** a feature branch
 3. **Test** both native and WASM builds
 4. **Submit** a pull request
-
-### Development Workflow
-```bash
-# Test native implementation
-./build_native_test.sh
-./bitnet_inference_test models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf "Test"
-
-# Test WASM implementation  
-./build.sh
-python3 -m http.server 8000
-# Open http://localhost:8000/test.html
-```
 
 ## License
 

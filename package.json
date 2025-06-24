@@ -7,7 +7,7 @@
     "build": "./build.sh",
     "setup": "./setup_and_build.sh",
     "serve": "python3 -m http.server 8000",
-    "test": "python3 -m http.server 8000 & sleep 2 && echo 'Open http://localhost:8000/test.html to run tests'",
+    "test": "node test-real-model.js",
     "clean": "rm -f bitnet.js bitnet.wasm emcc_*.log",
     "lint": "echo 'No linting configured yet'",
     "format": "echo 'No formatting configured yet'"
@@ -31,7 +31,14 @@
     "url": "https://github.com/jerfletcher/BitNet-wasm/issues"
   },
   "homepage": "https://github.com/jerfletcher/BitNet-wasm#readme",
-  "devDependencies": {},
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "playwright": "^1.40.0"
+  },
   "engines": {
     "node": ">=16.0.0"
   }

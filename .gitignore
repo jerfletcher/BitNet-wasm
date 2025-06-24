@@ -48,3 +48,5 @@ logs/
 
 # Emscripten SDK
 emsdk/
+
+node_modules/

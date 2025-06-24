@@ -3,96 +3,504 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitNet-WASM Example</title>
+    <title>BitNet WASM Test</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        #output { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #fff; white-space: pre-wrap; }
-        .status { font-weight: bold; }
-        .success { color: green; }
-        .error { color: red; }
-        .note { color: #555; font-style: italic;}
-        .container { display: flex; flex-direction: column; max-width: 800px; margin: 0 auto; }
-        .demo-section { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background-color: #fff; }
-        .input-section { display: flex; flex-direction: column; margin-bottom: 15px; }
-        textarea { width: 100%; height: 100px; margin-bottom: 10px; padding: 8px; }
-        button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        .result-section { margin-top: 15px; padding: 10px; background-color: #f9f9f9; border: 1px solid #eee; }
-        .model-output { background-color: #f0f8ff; padding: 15px; border-radius: 4px; margin-top: 10px; border-left: 4px solid #4CAF50; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .pending { background-color: #fff3cd; border-color: #ffeaa7; }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>BitNet-WASM Example</h1>
-        <p>This example demonstrates loading the BitNet WASM module and using the implemented BitNet functions for matrix operations and model inference.</p>
-        
-        <div id="status" class="status">Initializing...</div>
-        
-        <div class="demo-section">
-            <h2>BitNet Model Inference Demo</h2>
-            <p>This demo loads a BitNet model and runs inference with it.</p>
-            
-            <div class="input-section">
-                <label for="model-path">Model Path:</label>
-                <input type="text" id="model-path" value="/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                <span class="note">Default: <code>/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf</code> (BitNet 1.58B 2B model)</span>
-                <button id="load-model" disabled>Load Model</button>
-                <div id="load-status" style="margin: 10px 0;"></div>
-                
-                <label for="inference-input">Input Text:</label>
-                <textarea id="inference-input">Microsoft Corporation is an American multinational corporation and technology company headquartered in Redmond, Washington.</textarea>
-                
-                <button id="run-inference" disabled>Run Inference</button>
-            </div>
-            
-            <div class="result-section">
-                <h3>Result:</h3>
-                <div id="inference-result">Load a model and run inference to see results</div>
-            </div>
-        </div>
-        
-        <div class="demo-section">
-            <h2>Matrix Multiplication Demo</h2>
-            <p>This demo shows how to use BitNet for matrix multiplication with 2-bit quantization.</p>
-            
-            <div class="input-section">
-                <label for="matrix-a">Input Matrix (comma-separated values):</label>
-                <textarea id="matrix-a">1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0</textarea>
-                
-                <label for="matrix-b">Weight Matrix (comma-separated values):</label>
-                <textarea id="matrix-b">0.1, 0.2, 0.3, -0.1, -0.2, -0.3, 0.4, 0.5, 0.6</textarea>
-                
-                <button id="run-matmul">Run Matrix Multiplication</button>
-            </div>
-            
-            <div class="result-section">
-                <h3>Result:</h3>
-                <div id="matmul-result">Run the operation to see results</div>
-            </div>
-        </div>
-        
-        <div class="demo-section">
-            <h2>Tensor Transformation Demo</h2>
-            <p>This demo shows how to transform a tensor using BitNet quantization.</p>
-            
-            <div class="input-section">
-                <label for="tensor-data">Tensor Data (comma-separated values):</label>
-                <textarea id="tensor-data">0.5, -0.3, 0.1, 0.0, 0.7, -0.2, 0.4, -0.6</textarea>
-                
-                <button id="run-transform">Transform Tensor</button>
-            </div>
-            
-            <div class="result-section">
-                <h3>Result:</h3>
-                <div id="transform-result">Run the operation to see results</div>
-            </div>
-        </div>
-        
-        <h2>WASM Module Output</h2>
-        <div id="output">Loading module...</div>
+    <h1>BitNet WASM Functionality Test</h1>
+    
+    <div id="initialization" class="test-section pending">
+        <h2>1. Module Initialization</h2>
+        <p id="init-status">Loading WASM module...</p>
+        <pre id="init-log"></pre>
     </div>
 
-    <script type="module" src="src/bitnet_main.js"></script>
+    <div id="basic-functions" class="test-section pending">
+        <h2>2. Basic Function Tests</h2>
+        <p id="basic-status">Waiting for initialization...</p>
+        <button id="test-basic" disabled>Run Basic Tests</button>
+        <pre id="basic-log"></pre>
+    </div>
+
+    <div id="model-loading" class="test-section pending">
+        <h2>3. Model Loading Test</h2>
+        <p id="model-status">Waiting for basic tests...</p>
+        <div>
+            <label>
+                <input type="radio" name="model-type" value="mock" checked> Use Mock Model (fast, for testing)
+            </label>
+            <br>
+            <label>
+                <input type="radio" name="model-type" value="real"> Use Real Model (1.2GB - slow but real inference)
+            </label>
+        </div>
+        <button id="test-model" disabled>Test Model Loading</button>
+        <pre id="model-log"></pre>
+    </div>
+
+    <div id="inference-test" class="test-section pending">
+        <h2>4. Inference Test</h2>
+        <p id="inference-status">Waiting for model loading...</p>
+        <button id="test-inference" disabled>Run Inference Test</button>
+        <pre id="inference-log"></pre>
+    </div>
+
+    <div id="comprehensive-test" class="test-section pending">
+        <h2>5. Comprehensive Test</h2>
+        <p id="comprehensive-status">Waiting for inference test...</p>
+        <button id="test-comprehensive" disabled>Run Full Test Suite</button>
+        <pre id="comprehensive-log"></pre>
+    </div>
+
+    <script type="module">
+        let bitnetModule = null;
+        let testResults = {};
+
+        // Utility functions
+        function updateStatus(sectionId, status, className, message) {
+            const section = document.getElementById(sectionId);
+            const statusEl = document.getElementById(status);
+            section.className = `test-section ${className}`;
+            statusEl.textContent = message;
+        }
+
+        function logMessage(logId, message) {
+            const logEl = document.getElementById(logId);
+            logEl.textContent += message + '\n';
+            console.log(`[${logId}] ${message}`);
+        }
+
+        function clearLog(logId) {
+            document.getElementById(logId).textContent = '';
+        }
+
+        // Test 1: Initialize WASM module
+        async function initializeModule() {
+            try {
+                logMessage('init-log', 'Loading BitNet WASM module...');
+                
+                // Import the module
+                const BitNetModule = await import('./bitnet.js');
+                logMessage('init-log', 'Module imported successfully');
+                
+                // Initialize the module
+                bitnetModule = await BitNetModule.default();
+                logMessage('init-log', 'Module initialized successfully');
+                
+                // Test basic memory functions
+                const testPtr = bitnetModule._malloc(100);
+                if (testPtr) {
+                    bitnetModule._free(testPtr);
+                    logMessage('init-log', 'Memory allocation/deallocation works');
+                } else {
+                    throw new Error('Memory allocation failed');
+                }
+
+                updateStatus('initialization', 'init-status', 'success', 'WASM module loaded successfully');
+                document.getElementById('test-basic').disabled = false;
+                testResults.initialization = true;
+                
+            } catch (error) {
+                logMessage('init-log', `Error: ${error.message}`);
+                updateStatus('initialization', 'init-status', 'error', 'Failed to load WASM module');
+                testResults.initialization = false;
+            }
+        }
+
+        // Test 2: Basic function tests
+        function testBasicFunctions() {
+            clearLog('basic-log');
+            
+            try {
+                logMessage('basic-log', 'Testing BitNet initialization...');
+                
+                // Test bitnet_init function
+                try {
+                    bitnetModule.ccall('bitnet_init', 'void', [], []);
+                    logMessage('basic-log', '✓ bitnet_init() executed successfully');
+                } catch (error) {
+                    throw new Error(`bitnet_init function error: ${error.message}`);
+                }
+
+                // Test bitnet_is_model_loaded
+                try {
+                    const isLoaded = bitnetModule.ccall('bitnet_is_model_loaded', 'number', [], []);
+                    logMessage('basic-log', `✓ bitnet_is_model_loaded() returned: ${isLoaded}`);
+                } catch (error) {
+                    throw new Error(`bitnet_is_model_loaded function error: ${error.message}`);
+                }
+
+                // Test bitnet_get_model_info
+                try {                        const vocabPtr = bitnetModule._malloc(4);
+                        const embdPtr = bitnetModule._malloc(4);
+                        const layerPtr = bitnetModule._malloc(4);
+                        
+                        try {
+                            bitnetModule.ccall('bitnet_get_model_info', 'void', ['number', 'number', 'number'], [vocabPtr, embdPtr, layerPtr]);
+                            
+                            const vocab = bitnetModule.HEAPU32[vocabPtr >> 2];
+                            const embd = bitnetModule.HEAPU32[embdPtr >> 2];
+                            const layers = bitnetModule.HEAPU32[layerPtr >> 2];
+                            
+                            logMessage('basic-log', `✓ Model info: vocab=${vocab}, embd=${embd}, layers=${layers}`);
+                        } finally {
+                            bitnetModule._free(vocabPtr);
+                            bitnetModule._free(embdPtr);
+                            bitnetModule._free(layerPtr);
+                        }
+                } catch (error) {
+                    throw new Error(`bitnet_get_model_info function error: ${error.message}`);
+                }
+
+                updateStatus('basic-functions', 'basic-status', 'success', 'All basic functions work correctly');
+                document.getElementById('test-model').disabled = false;
+                testResults.basicFunctions = true;
+                
+            } catch (error) {
+                logMessage('basic-log', `✗ Error: ${error.message}`);
+                updateStatus('basic-functions', 'basic-status', 'error', 'Basic function tests failed');
+                testResults.basicFunctions = false;
+            }
+        }
+
+        // Test 3: Model loading test
+        async function testModelLoading() {
+            clearLog('model-log');
+            
+            try {
+                const useRealModel = document.querySelector('input[name="model-type"]:checked').value === 'real';
+                logMessage('model-log', `Loading ${useRealModel ? 'real' : 'mock'} model...`);
+                
+                let modelData;
+                
+                if (useRealModel) {
+                    // Load the actual GGUF model from the models directory
+                    logMessage('model-log', 'Fetching real model file (1.2GB)...');
+                    logMessage('model-log', 'This may take a while depending on your connection...');
+                    
+                    try {
+                        const response = await fetch('./models/ggml-model-i2_s.gguf');
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        const contentLength = response.headers.get('content-length');
+                        if (contentLength) {
+                            const totalSize = parseInt(contentLength);
+                            logMessage('model-log', `Model size: ${(totalSize / 1024 / 1024 / 1024).toFixed(2)} GB`);
+                        }
+                        
+                        logMessage('model-log', 'Downloading model data...');
+                        const arrayBuffer = await response.arrayBuffer();
+                        modelData = new Uint8Array(arrayBuffer);
+                        logMessage('model-log', `Real model loaded: ${modelData.length} bytes`);
+                        
+                    } catch (fetchError) {
+                        logMessage('model-log', `Failed to load real model: ${fetchError.message}`);
+                        logMessage('model-log', 'Falling back to mock model...');
+                        useRealModel = false;
+                    }
+                }
+                
+                if (!useRealModel) {
+                    // Create a minimal GGUF file structure for testing
+                    logMessage('model-log', 'Creating mock GGUF model data...');
+                    modelData = new Uint8Array(1024);
+                    
+                    // GGUF magic bytes
+                    modelData[0] = 0x47; // 'G'
+                    modelData[1] = 0x47; // 'G'
+                    modelData[2] = 0x55; // 'U'
+                    modelData[3] = 0x46; // 'F'
+                    
+                    // Version (little endian)
+                    modelData[4] = 3;
+                    modelData[5] = 0;
+                    modelData[6] = 0;
+                    modelData[7] = 0;
+                    
+                    // Number of tensors (little endian)
+                    modelData[8] = 0;
+                    modelData[9] = 0;
+                    modelData[10] = 0;
+                    modelData[11] = 0;
+                    modelData[12] = 0;
+                    modelData[13] = 0;
+                    modelData[14] = 0;
+                    modelData[15] = 0;
+                    
+                    // Number of KV pairs (little endian)
+                    modelData[16] = 0;
+                    modelData[17] = 0;
+                    modelData[18] = 0;
+                    modelData[19] = 0;
+                    modelData[20] = 0;
+                    modelData[21] = 0;
+                    modelData[22] = 0;
+                    modelData[23] = 0;
+                    
+                    logMessage('model-log', `Mock model created: ${modelData.length} bytes`);
+                }
+                
+                // Allocate memory for model data
+                const modelPtr = bitnetModule._malloc(modelData.length);
+                if (!modelPtr) {
+                    throw new Error('Failed to allocate memory for model');
+                }
+                
+                // Copy model data to WASM memory
+                bitnetModule.HEAPU8.set(modelData, modelPtr);
+                logMessage('model-log', 'Model data copied to WASM memory');
+                
+                // Test model loading
+                try {
+                    const result = bitnetModule.ccall('bitnet_load_model', 'number', ['number', 'number'], [modelPtr, modelData.length]);
+                    logMessage('model-log', `bitnet_load_model() returned: ${result}`);
+                    
+                    if (result === 1) {
+                        logMessage('model-log', '✓ Model loaded successfully');
+                        
+                        // Check if model is loaded
+                        const isLoaded = bitnetModule.ccall('bitnet_is_model_loaded', 'number', [], []);
+                        logMessage('model-log', `Model loaded status: ${isLoaded}`);
+                        
+                        // Get model info
+                        const vocabPtr = bitnetModule._malloc(4);
+                        const embdPtr = bitnetModule._malloc(4);
+                        const layerPtr = bitnetModule._malloc(4);
+                        
+                        bitnetModule.ccall('bitnet_get_model_info', 'void', ['number', 'number', 'number'], [vocabPtr, embdPtr, layerPtr]);
+                        
+                        const vocab = bitnetModule.HEAPU32[vocabPtr >> 2];
+                        const embd = bitnetModule.HEAPU32[embdPtr >> 2];
+                        const layers = bitnetModule.HEAPU32[layerPtr >> 2];
+                        
+                        bitnetModule._free(vocabPtr);
+                        bitnetModule._free(embdPtr);
+                        bitnetModule._free(layerPtr);
+                        
+                        logMessage('model-log', `Model architecture: vocab=${vocab}, embedding=${embd}, layers=${layers}`);
+                        logMessage('model-log', `Model type: ${useRealModel ? 'Real BitNet model' : 'Mock model for testing'}`);
+                        
+                        if (isLoaded === 1) {
+                            updateStatus('model-loading', 'model-status', 'success', 'Model loading test passed');
+                            document.getElementById('test-inference').disabled = false;
+                            testResults.modelLoading = true;
+                        } else {
+                            throw new Error('Model not reported as loaded after loading');
+                        }
+                    } else {
+                        throw new Error('Model loading returned failure code');
+                    }
+                } catch (error) {
+                    throw new Error(`Model loading error: ${error.message}`);
+                }
+                
+                // Clean up
+                bitnetModule._free(modelPtr);
+                
+            } catch (error) {
+                logMessage('model-log', `✗ Error: ${error.message}`);
+                updateStatus('model-loading', 'model-status', 'error', 'Model loading test failed');
+                testResults.modelLoading = false;
+            }
+        }
+
+        // Test 4: Inference test
+        function testInference() {
+            clearLog('inference-log');
+            
+            try {
+                const useRealModel = document.querySelector('input[name="model-type"]:checked').value === 'real';
+                logMessage('inference-log', `Testing BitNet inference with ${useRealModel ? 'real' : 'mock'} model...`);
+                
+                const testInput = "Hello, BitNet!";
+                const maxOutputLen = 1024;
+                
+                // Allocate memory for input and output
+                const inputPtr = bitnetModule._malloc(testInput.length + 1);
+                const outputPtr = bitnetModule._malloc(maxOutputLen);
+                
+                if (!inputPtr || !outputPtr) {
+                    throw new Error('Failed to allocate memory for inference');
+                }
+                
+                // Copy input string to WASM memory
+                bitnetModule.stringToUTF8(testInput, inputPtr, testInput.length + 1);
+                logMessage('inference-log', `Input text: "${testInput}"`);
+                
+                if (useRealModel) {
+                    logMessage('inference-log', 'Using real model weights for inference...');
+                } else {
+                    logMessage('inference-log', 'Using mock model (pseudo-random generation)...');
+                }
+                
+                // Run inference
+                try {
+                    const outputLen = bitnetModule.ccall('bitnet_inference_run', 'number', ['number', 'number', 'number'], [inputPtr, outputPtr, maxOutputLen]);
+                    logMessage('inference-log', `Inference returned output length: ${outputLen}`);
+                    
+                    if (outputLen > 0) {
+                        // Read output string
+                        const outputText = bitnetModule.UTF8ToString(outputPtr);
+                        logMessage('inference-log', `Generated text: "${outputText}"`);
+                        
+                        if (useRealModel) {
+                            logMessage('inference-log', 'Note: This is actual BitNet model inference output');
+                        } else {
+                            logMessage('inference-log', 'Note: This is pseudo-random output from mock model');
+                        }
+                        
+                        if (outputText.length > 0) {
+                            logMessage('inference-log', '✓ Inference generated text successfully');
+                            updateStatus('inference-test', 'inference-status', 'success', 'Inference test passed');
+                            document.getElementById('test-comprehensive').disabled = false;
+                            testResults.inference = true;
+                        } else {
+                            throw new Error('Inference returned empty text');
+                        }
+                    } else {
+                        throw new Error('Inference returned no output');
+                    }
+                } catch (error) {
+                    throw new Error(`Inference error: ${error.message}`);
+                }
+                
+                // Clean up
+                bitnetModule._free(inputPtr);
+                bitnetModule._free(outputPtr);
+                
+            } catch (error) {
+                logMessage('inference-log', `✗ Error: ${error.message}`);
+                updateStatus('inference-test', 'inference-status', 'error', 'Inference test failed');
+                testResults.inference = false;
+            }
+        }
+
+        // Test 5: Comprehensive test
+        function testComprehensive() {
+            clearLog('comprehensive-log');
+            
+            try {
+                logMessage('comprehensive-log', 'Running comprehensive test suite...');
+                
+                // Test multiple inference runs
+                const testInputs = [
+                    "The quick brown fox",
+                    "Once upon a time",
+                    "In a galaxy far far away",
+                    "To be or not to be"
+                ];
+                
+                let successCount = 0;
+                
+                for (let i = 0; i < testInputs.length; i++) {
+                    const input = testInputs[i];
+                    logMessage('comprehensive-log', `\nTest ${i + 1}: "${input}"`);
+                    
+                    try {
+                        const inputPtr = bitnetModule._malloc(input.length + 1);
+                        const outputPtr = bitnetModule._malloc(1024);
+                        
+                        bitnetModule.stringToUTF8(input, inputPtr, input.length + 1);
+                        const outputLen = bitnetModule.ccall('bitnet_inference_run', 'number', ['number', 'number', 'number'], [inputPtr, outputPtr, 1024]);
+                        
+                        if (outputLen > 0) {
+                            const output = bitnetModule.UTF8ToString(outputPtr);
+                            logMessage('comprehensive-log', `✓ Generated: "${output}"`);
+                            successCount++;
+                        } else {
+                            logMessage('comprehensive-log', `✗ No output generated`);
+                        }
+                        
+                        bitnetModule._free(inputPtr);
+                        bitnetModule._free(outputPtr);
+                        
+                    } catch (error) {
+                        logMessage('comprehensive-log', `✗ Error: ${error.message}`);
+                    }
+                }
+                
+                logMessage('comprehensive-log', `\nResults: ${successCount}/${testInputs.length} tests passed`);
+                
+                // Test model cleanup
+                logMessage('comprehensive-log', '\nTesting model cleanup...');
+                bitnetModule.ccall('bitnet_free_model', 'void', [], []);
+                
+                const isLoaded = bitnetModule.ccall('bitnet_is_model_loaded', 'number', [], []);
+                if (isLoaded === 0) {
+                    logMessage('comprehensive-log', '✓ Model freed successfully');
+                } else {
+                    logMessage('comprehensive-log', '✗ Model not properly freed');
+                }
+                
+                // Summary
+                const allPassed = Object.values(testResults).every(result => result === true);
+                logMessage('comprehensive-log', `\n=== TEST SUMMARY ===`);
+                logMessage('comprehensive-log', `Initialization: ${testResults.initialization ? 'PASS' : 'FAIL'}`);
+                logMessage('comprehensive-log', `Basic Functions: ${testResults.basicFunctions ? 'PASS' : 'FAIL'}`);
+                logMessage('comprehensive-log', `Model Loading: ${testResults.modelLoading ? 'PASS' : 'FAIL'}`);
+                logMessage('comprehensive-log', `Inference: ${testResults.inference ? 'PASS' : 'FAIL'}`);
+                logMessage('comprehensive-log', `Overall: ${allPassed ? 'PASS' : 'FAIL'}`);
+                
+                if (allPassed && successCount === testInputs.length) {
+                    updateStatus('comprehensive-test', 'comprehensive-status', 'success', 'All tests passed!');
+                } else {
+                    updateStatus('comprehensive-test', 'comprehensive-status', 'error', 'Some tests failed');
+                }
+                
+            } catch (error) {
+                logMessage('comprehensive-log', `✗ Error: ${error.message}`);
+                updateStatus('comprehensive-test', 'comprehensive-status', 'error', 'Comprehensive test failed');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('test-basic').addEventListener('click', testBasicFunctions);
+        document.getElementById('test-model').addEventListener('click', testModelLoading);
+        document.getElementById('test-inference').addEventListener('click', testInference);
+        document.getElementById('test-comprehensive').addEventListener('click', testComprehensive);
+
+        // Auto-start initialization
+        initializeModule();
+    </script>
 </body>
 </html>
