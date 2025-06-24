@@ -1,6 +1,6 @@
 {
   "name": "bitnet-wasm-dev",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Development environment for BitNet-WASM",
   "private": true,
   "scripts": {
