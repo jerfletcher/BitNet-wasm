@@ -5,22 +5,26 @@ cd "$(dirname "$0")"
 
 echo "Building BitNet-WASM..."
 
+# Activate Emscripten SDK environment
+echo "Activating Emscripten SDK..."
+source emsdk/emsdk_env.sh
+
 # Define source files and include directories using 3rdparty sources
-BITNET_SOURCES="src/bitnet_inference.cpp 3rdparty/BitNet/src/ggml-bitnet-lut.cpp 3rdparty/BitNet/src/ggml-bitnet-mad.cpp 3rdparty/llama.cpp/ggml/src/ggml.c 3rdparty/llama.cpp/ggml/src/ggml-quants.c 3rdparty/llama.cpp/ggml/src/ggml-backend.cpp 3rdparty/llama.cpp/ggml/src/ggml-alloc.c 3rdparty/llama.cpp/src/llama.cpp 3rdparty/llama.cpp/src/llama-vocab.cpp 3rdparty/llama.cpp/src/llama-sampling.cpp 3rdparty/llama.cpp/src/llama-grammar.cpp 3rdparty/llama.cpp/src/unicode.cpp 3rdparty/llama.cpp/src/unicode-data.cpp 3rdparty/llama.cpp/common/common.cpp 3rdparty/llama.cpp/common/sampling.cpp 3rdparty/llama.cpp/common/arg.cpp 3rdparty/llama.cpp/common/log.cpp"
+BITNET_SOURCES="src/bitnet_inference.cpp src/build-info.cpp 3rdparty/BitNet/src/ggml-bitnet-lut.cpp 3rdparty/BitNet/src/ggml-bitnet-mad.cpp 3rdparty/llama.cpp/ggml/src/ggml.c 3rdparty/llama.cpp/ggml/src/ggml-quants.c 3rdparty/llama.cpp/ggml/src/ggml-backend.cpp 3rdparty/llama.cpp/ggml/src/ggml-alloc.c 3rdparty/llama.cpp/src/llama.cpp 3rdparty/llama.cpp/src/llama-vocab.cpp 3rdparty/llama.cpp/src/llama-sampling.cpp 3rdparty/llama.cpp/src/llama-grammar.cpp 3rdparty/llama.cpp/src/unicode.cpp 3rdparty/llama.cpp/src/unicode-data.cpp 3rdparty/llama.cpp/common/common.cpp 3rdparty/llama.cpp/common/sampling.cpp 3rdparty/llama.cpp/common/arg.cpp 3rdparty/llama.cpp/common/log.cpp"
 INCLUDE_DIRS="-I3rdparty/BitNet/include -I3rdparty/llama.cpp/ggml/include -I3rdparty/llama.cpp/include -I3rdparty/llama.cpp/ggml/src -I3rdparty/llama.cpp/common"
 
-# Define compilation flags for BitNet - enable ARM TL1 for now since that seems to be the most complete
-COMPILATION_DEFINES="-DGGML_USE_BITNET=1 -DNDEBUG=1 -DGGML_BITNET_ARM_TL1=1"
+# Define compilation flags for BitNet - try x86 TL2 instead of ARM TL1 for WASM compatibility
+COMPILATION_DEFINES="-DGGML_USE_BITNET=1 -DNDEBUG=1 -DGGML_BITNET_X86_TL2=1 -DGGML_NO_ACCELERATE=1 -DGGML_NO_OPENMP=1 -DGGML_WASM_SINGLE_THREAD=1"
 
 # Output WASM file name
 OUTPUT_FILE="bitnet.wasm"
 OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
 
 # Emscripten compiler flags with assertions enabled for debugging
-EMCC_FLAGS="-O1 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8','HEAPU32','HEAPF32','HEAP8','HEAP32','lengthBytesUTF8','stringToUTF8','UTF8ToString'] -s EXPORTED_FUNCTIONS=['_malloc','_free'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=16MB -s MAXIMUM_MEMORY=4GB -s STACK_SIZE=1MB -s DISABLE_EXCEPTION_CATCHING=0 -s ASSERTIONS=1 -s SAFE_HEAP=0 -s USE_PTHREADS=0 -s PTHREAD_POOL_SIZE=0"
+EMCC_FLAGS="-O0 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8','HEAPU32','HEAPF32','HEAP8','HEAP32','lengthBytesUTF8','stringToUTF8','UTF8ToString'] -s EXPORTED_FUNCTIONS=['_malloc','_free'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=32MB -s MAXIMUM_MEMORY=4GB -s STACK_SIZE=2MB -s DISABLE_EXCEPTION_CATCHING=0 -s ASSERTIONS=1 -s SAFE_HEAP=0 -s USE_PTHREADS=0 -s PTHREAD_POOL_SIZE=0 --bind -s ERROR_ON_UNDEFINED_SYMBOLS=0"
 
-# Prepare bitnet-lut-kernels.h by copying a preset one (using 3B preset for 2B model)
-PRESET_KERNEL_HEADER="3rdparty/BitNet/preset_kernels/bitnet_b1_58-3B/bitnet-lut-kernels-tl1.h"
+# Prepare bitnet-lut-kernels.h by copying a preset one (using x86 TL2 for WASM)
+PRESET_KERNEL_HEADER="3rdparty/BitNet/preset_kernels/bitnet_b1_58-3B/bitnet-lut-kernels-tl2.h"
 TARGET_KERNEL_HEADER="3rdparty/BitNet/include/bitnet-lut-kernels.h"
 
 if [ ! -f "$PRESET_KERNEL_HEADER" ]; then
