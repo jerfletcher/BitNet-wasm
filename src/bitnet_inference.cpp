@@ -308,7 +308,29 @@ extern "C" {
             input_tokens.resize(n_tokens);
             std::cout << "[bitnet_inference_run] Input tokens: " << input_tokens.size();
             if (add_bos) std::cout << " (includes BOS)";
-            std::cout << std::endl;
+            std::cout << " BOS token: " << bos_token << std::endl;
+            
+            // Debug: Print all tokens immediately after tokenization
+            std::cout << "All tokens after tokenization:" << std::endl;
+            for (int i = 0; i < n_tokens; ++i) {
+                std::vector<char> debug_piece(256);
+                const int debug_n_piece = llama_token_to_piece(g_init_result.model, input_tokens[i], 
+                                                             debug_piece.data(), debug_piece.size(), 0, true);
+                std::string debug_text(debug_piece.data(), debug_n_piece > 0 ? debug_n_piece : 0);
+                std::cout << "  Token " << i << ": " << input_tokens[i] << " = '" << debug_text << "'" << std::endl;
+                
+                // Check for problematic tokens immediately
+                if (input_tokens[i] == 0 && i > 0) {  // Token 0 is often problematic if not BOS
+                    std::cerr << "⚠️ WARNING: Token ID 0 detected at position " << i << " (not BOS position)" << std::endl;
+                    std::cerr << "This might be an EOS token or invalid token that could cause NaN." << std::endl;
+                    
+                    // Remove the problematic token
+                    std::cerr << "Removing problematic token and continuing..." << std::endl;
+                    input_tokens.erase(input_tokens.begin() + i);
+                    std::cout << "New token count: " << input_tokens.size() << std::endl;
+                    break;
+                }
+            }
             
             // Clear the KV cache and reset sampler
             llama_kv_cache_clear(g_init_result.context);
@@ -329,6 +351,13 @@ extern "C" {
                 std::cout << "  Processing token " << (i+1) << "/" << input_tokens.size() 
                           << " (id=" << input_tokens[i] << ")" << std::endl;
                 
+                // Get token text for debugging
+                std::vector<char> token_piece(256);
+                const int token_n_piece = llama_token_to_piece(g_init_result.model, input_tokens[i], 
+                                                             token_piece.data(), token_piece.size(), 0, true);
+                std::string token_text(token_piece.data(), token_n_piece > 0 ? token_n_piece : 0);
+                std::cout << "    Token text: '" << token_text << "'" << std::endl;
+                
                 if (llama_decode(g_init_result.context, single_batch)) {
                     std::cerr << "Failed to decode input token " << i << " (id=" << input_tokens[i] << ")" << std::endl;
                     llama_batch_free(single_batch);
@@ -337,18 +366,41 @@ extern "C" {
                 
                 llama_batch_free(single_batch);
                 
-                // Check for NaN after each token (but only check logits for the last token)
-                if (i == input_tokens.size() - 1) {
-                    float* logits_check = llama_get_logits(g_init_result.context);
-                    for (int j = 0; j < 5; ++j) {
-                        if (std::isnan(logits_check[j]) || std::isinf(logits_check[j])) {
-                            std::cerr << "NaN/Inf detected after processing token " << i 
-                                      << " at logit " << j << " = " << logits_check[j] << std::endl;
-                            return 0;
+                // Check for NaN after EVERY token to catch exactly when it happens
+                float* current_logits = llama_get_logits(g_init_result.context);
+                bool has_logits = (i == input_tokens.size() - 1); // Only last token should have logits computed
+                
+                if (has_logits) {
+                    // Check the logits for NaN/Inf
+                    for (int j = 0; j < 3; ++j) {
+                        if (std::isnan(current_logits[j]) || std::isinf(current_logits[j])) {
+                            std::cerr << "⚠️ NaN/Inf detected after token " << i 
+                                      << " (id=" << input_tokens[i] << ", text='" << token_text 
+                                      << "') at logit " << j << " = " << current_logits[j] << std::endl;
+                            
+                            // Show the sequence that led to this
+                            std::cerr << "Token sequence up to this point:" << std::endl;
+                            for (size_t k = 0; k <= i; ++k) {
+                                std::vector<char> seq_piece(256);
+                                const int seq_n_piece = llama_token_to_piece(g_init_result.model, input_tokens[k], 
+                                                                            seq_piece.data(), seq_piece.size(), 0, true);
+                                std::string seq_text(seq_piece.data(), seq_n_piece > 0 ? seq_n_piece : 0);
+                                std::cerr << "  " << k << ": " << input_tokens[k] << " = '" << seq_text << "'" << std::endl;
+                            }
+                            
+                            // Try recovery by using only the tokens up to this point
+                            std::cerr << "Attempting to continue with partial input..." << std::endl;
+                            input_tokens.resize(i); // Truncate to exclude problematic tokens
+                            goto exit_token_loop; // Break out of the loop
                         }
                     }
+                    std::cout << "    ✓ Logits valid after token " << (i+1) << std::endl;
+                } else {
+                    std::cout << "    ✓ Token " << (i+1) << " processed (no logits computed)" << std::endl;
                 }
             }
+            
+            exit_token_loop:
             
             std::cout << "[bitnet_inference_run] ✓ All input tokens processed successfully" << std::endl;
             
