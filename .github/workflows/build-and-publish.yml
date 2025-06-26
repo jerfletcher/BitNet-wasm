@@ -207,7 +207,7 @@ jobs:
         mkdir -p pages
 
         # Copy the examples folder as the main site
-        cp -r examples/standalone-integration/* pages/
+        cp -r examples/standalone/* pages/
         
         # Add the latest built files
         cp dist/bitnet.js pages/
