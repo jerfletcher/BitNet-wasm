@@ -13,9 +13,6 @@ This directory contains all test scripts and diagnostic tools for the BitNet WAS
 - **`diagnose-alignment.js`** - Detects memory alignment issues in models
 - **`quick-fix.js`** - Interactive troubleshooting guide
 
-### Solution Generators
-- **`create-wasm-solution.js`** - Generates download scripts for compatible models
-
 ## 🔧 How to Run Tests
 
 ### Basic Test

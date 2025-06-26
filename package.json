@@ -8,6 +8,7 @@
     "setup": "./setup_and_build.sh",
     "serve": "node server.js",
     "test": "node test-real-model.js",
+    "test:quick": "node tests/quick-test.js",
     "clean": "rm -f bitnet.js bitnet.wasm emcc_*.log",
     "lint": "echo 'No linting configured yet'",
     "format": "echo 'No formatting configured yet'",

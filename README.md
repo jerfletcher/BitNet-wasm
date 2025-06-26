@@ -2,6 +2,14 @@
 
 A complete WebAssembly implementation of Microsoft's BitNet.cpp for efficient 1.58-bit neural network inference in web browsers.
 
+## 📖 Documentation
+
+- **[Memory & Alignment Analysis](docs/MEMORY_ISSUE_ANALYSIS.md)** - Complete technical analysis with quick fix guide for WASM compatibility issues
+- **[Integration Guide](docs/INTEGRATION.md)** - Step-by-step integration instructions, API reference, and real-world usage examples  
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Codebase organization, build system details, and current technical status
+- **[BitNet Runner](docs/BITNET_RUNNER.md)** - Docker and local build tools for running original BitNet C++ implementation
+- **[Investigation Report](docs/FINAL_INVESTIGATION_REPORT.md)** - Complete problem analysis, root cause findings, and current limitations
+
 ## Overview
 
 BitNet-WASM is a full port of the original BitNet.cpp that brings BitNet's revolutionary 1.58-bit quantization to web browsers through WebAssembly. This implementation provides **actual working inference** with real BitNet models, using the complete llama.cpp/BitNet inference pipeline compiled to WASM.
@@ -79,18 +87,26 @@ Failed to load model from file
 - ✅ **Q8_0 Quantization**: Compatible (expected to work)
 - ❌ **i2_s Quantization**: Incompatible (2-bit ternary causes alignment issues)
 
-## Submodules Architecture
+### Key Components
 
-This project leverages three key submodules that work together to provide complete BitNet functionality:
+- **`src/`**: Core WASM implementation using authentic llama.cpp/BitNet APIs
+- **`docs/`**: Comprehensive documentation covering all aspects of the project
+- **`tests/`**: Complete test suite with diagnostics and troubleshooting tools
+- **`3rdparty/`**: External dependencies and reference implementations
+- **`models/`**: BitNet model storage (GGUF format)
 
-### 📚 **3rdparty/BitNet** (Source)
+### Submodules Architecture
+
+This project leverages key submodules that work together to provide complete BitNet functionality:
+
+#### 📚 **3rdparty/BitNet** (Source)
 - **Role**: The original BitNet.cpp implementation from Microsoft Research
 - **Purpose**: Primary source for BitNet quantization algorithms and model format
 - **What we use**: Core inference logic, quantization schemes, GGUF handling
-- this includes the llama.cpp fork with modified functions for inference.
+- Includes the llama.cpp fork with modified functions for inference
 
-### 🌐 **3rdparty/llama-cpp-wasm** (Model)
-- **Role**: Reference WASM implementation for guidance
+#### 🌐 **3rdparty/llama-cpp-wasm** (Reference)
+- **Role**: Reference WASM implementation for guidance  
 - **Purpose**: Provides patterns for WebAssembly compilation and JavaScript integration
 - **What we use**: Build patterns, WASM bindings, browser integration approaches
 
@@ -384,6 +400,20 @@ src/
 ├── build-info.cpp          # Build metadata for llama.cpp compatibility
 └── CMakeLists.txt          # Build configuration
 
+docs/                       # 📖 Consolidated documentation
+├── ALIGNMENT_ANALYSIS.md   # Quick reference guide
+├── MEMORY_ISSUE_ANALYSIS.md # Technical deep dive
+├── INTEGRATION.md          # Implementation details
+├── PROJECT_STRUCTURE.md    # Architecture overview
+├── BITNET_RUNNER.md       # Advanced usage
+└── FINAL_INVESTIGATION_REPORT.md # Research findings
+
+tests/                      # 🧪 Test suite and diagnostics
+├── README.md               # Test documentation  
+├── quick-test.js           # Main test script
+├── test-minimal.js         # Memory tests
+└── analyze-model.js        # Model analysis
+
 3rdparty/
 ├── BitNet/                 # Microsoft's BitNet.cpp (source of truth)
 ├── llama.cpp/              # Foundation inference engine
@@ -400,9 +430,10 @@ bitnet.wasm                 # Compiled WebAssembly module
 ### Key Files and Their Roles
 - **`src/bitnet_wasm.cpp`**: Main implementation using authentic llama.cpp/BitNet APIs
 - **`build.sh`**: Emscripten build script with WASM-specific configurations
-- **`test-real-model.js`**: Playwright browser test suite
-- **`quick-test.js`**: Development testing script for Node.js
+- **`tests/quick-test.js`**: Development testing script for Node.js
+- **`test-real-model.js`**: Playwright browser test suite  
 - **`package.json`**: NPM build/test configuration
+- **`docs/`**: Comprehensive documentation covering all project aspects
 
 ## Roadmap & Future Work
 

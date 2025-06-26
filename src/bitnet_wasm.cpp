@@ -9,6 +9,29 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/bind.h>
+
+// WASM-specific memory alignment helpers for BitNet
+static void* aligned_malloc(size_t size, size_t alignment) {
+    // Ensure alignment is a power of 2
+    if ((alignment & (alignment - 1)) != 0) {
+        alignment = 16; // Default to 16-byte alignment
+    }
+    
+    void* ptr = malloc(size + alignment - 1);
+    if (!ptr) return nullptr;
+    
+    // Align the pointer
+    uintptr_t addr = (uintptr_t)ptr;
+    uintptr_t aligned_addr = (addr + alignment - 1) & ~(alignment - 1);
+    
+    return (void*)aligned_addr;
+}
+
+static void aligned_free(void* ptr) {
+    if (ptr) {
+        free(ptr);
+    }
+}
 #endif
 
 // Use the real BitNet and llama.cpp headers from 3rdparty
@@ -34,8 +57,10 @@ extern "C" {
         std::cout << "[bitnet_init] Initializing BitNet-enhanced llama.cpp" << std::endl;
         fflush(stdout);
         
-        // Initialize BitNet extensions first
+        // Initialize BitNet extensions with WASM safety checks
+        #ifdef GGML_USE_BITNET
         ggml_bitnet_init();
+        #endif
         
         // Initialize llama backend directly without common_init() to avoid threading issues
         llama_backend_init();
@@ -85,8 +110,8 @@ extern "C" {
             // Set up model parameters using common_params with WASM memory safety
             common_params params;
             params.model = temp_path;
-            params.n_ctx = 16;    // Ultra minimal for WASM memory bounds fix
-            params.n_batch = 4;   // Very small for WASM memory bounds fix
+            params.n_ctx = 512;    // Reasonable context size for BitNet
+            params.n_batch = 512;  // Reasonable batch size
             params.cpuparams.n_threads = 1; // Single thread for WASM
             params.cpuparams_batch.n_threads = 1; // Single thread for batch processing
             params.n_gpu_layers = 0; // No GPU in WASM
@@ -135,7 +160,7 @@ extern "C" {
             // Enhanced WASM alignment and memory safety for i2_s quantization
             model_params.use_mmap = false;      // Disable memory mapping
             model_params.use_mlock = false;     // Disable memory locking
-            model_params.check_tensors = false; // Skip tensor validation (alignment issues)
+            model_params.check_tensors = true;  // Keep tensor validation for safety
             
             // We can't directly override the pre-tokenizer in model params here,
             // but we'll handle it after model loading through vocab manipulation
@@ -226,12 +251,12 @@ extern "C" {
             llama_context_params ctx_params = common_context_params_to_llama(params);
             
             // Override potentially problematic settings for WASM memory constraints
-            ctx_params.n_ctx = 16;            // Ultra minimal context for memory bounds fix
-            ctx_params.n_batch = 1;           // Single token batch for memory bounds fix
-            ctx_params.n_ubatch = 1;          // Match batch size
+            ctx_params.n_ctx = 512;           // Reasonable context for BitNet models
+            ctx_params.n_batch = 512;         // Match typical batch size
+            ctx_params.n_ubatch = 512;        // Match batch size
             ctx_params.flash_attn = false;    // Definitely no flash attention
-            ctx_params.type_k = GGML_TYPE_F32; // Use F32 instead of F16 for better WASM compatibility
-            ctx_params.type_v = GGML_TYPE_F32; // Use F32 instead of F16 for better WASM compatibility
+            ctx_params.type_k = GGML_TYPE_F16; // Keep F16 for BitNet compatibility
+            ctx_params.type_v = GGML_TYPE_F16; // Keep F16 for BitNet compatibility
             ctx_params.logits_all = false;    // Only compute logits when needed
             ctx_params.embeddings = false;    // Don't compute embeddings
             ctx_params.offload_kqv = false;   // No GPU offloading in WASM
