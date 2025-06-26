@@ -16,6 +16,9 @@ INCLUDE_DIRS="-I3rdparty/BitNet/include -I3rdparty/BitNet/3rdparty/llama.cpp/ggm
 # Define compilation flags for BitNet - try x86 TL2 instead of ARM TL1 for WASM compatibility
 COMPILATION_DEFINES="-DGGML_USE_BITNET=1 -DNDEBUG=1 -DGGML_BITNET_X86_TL2=1 -DGGML_NO_ACCELERATE=1 -DGGML_NO_OPENMP=1 -DGGML_WASM_SINGLE_THREAD=1"
 
+# Add warning suppressions for deprecated C++17 features in upstream code
+WARNING_FLAGS="-Wno-deprecated-declarations -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
+
 # Output WASM file name
 OUTPUT_FILE="bitnet.wasm"
 OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
@@ -38,8 +41,8 @@ cp "$PRESET_KERNEL_HEADER" "$TARGET_KERNEL_HEADER"
 echo "Using real GGML and BitNet sources from 3rdparty folders..."
 
 echo "Compiling with Emscripten..."
-echo "Executing: emcc $EMCC_FLAGS $COMPILATION_DEFINES $INCLUDE_DIRS $BITNET_SOURCES -o $OUTPUT_JS_FILE"
-emcc $EMCC_FLAGS $COMPILATION_DEFINES $INCLUDE_DIRS $BITNET_SOURCES -o $OUTPUT_JS_FILE > emcc_stdout.log 2> emcc_stderr.log
+echo "Executing: emcc $EMCC_FLAGS $WARNING_FLAGS $COMPILATION_DEFINES $INCLUDE_DIRS $BITNET_SOURCES -o $OUTPUT_JS_FILE"
+emcc $EMCC_FLAGS $WARNING_FLAGS $COMPILATION_DEFINES $INCLUDE_DIRS $BITNET_SOURCES -o $OUTPUT_JS_FILE > emcc_stdout.log 2> emcc_stderr.log
 EMCC_EXIT_CODE=$?
 echo "emcc exit code: $EMCC_EXIT_CODE"
 echo "--- emcc stderr ---"

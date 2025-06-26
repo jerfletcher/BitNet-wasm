@@ -7,7 +7,8 @@
 
 #include "ggml-bitnet.h"
 #include "ggml-quants.h"
-#include "../3rdparty/BitNet/preset_kernels/bitnet_b1_58-3B/bitnet-lut-kernels-tl2.h"
+#include "ggml-backend.h"
+#include "bitnet-lut-kernels.h"
 
 #if defined(GGML_BITNET_ARM_TL1)
 
@@ -134,7 +135,7 @@ bool ggml_bitnet_can_mul_mat(const struct ggml_tensor * src0, const struct ggml_
     if ((is_type_supported(src0->type)) &&
         src1->type == GGML_TYPE_F32 &&
         dst->type == GGML_TYPE_F32 &&
-        src0->backend == GGML_BACKEND_TYPE_CPU) {
+        (src0->buffer == NULL || ggml_backend_buffer_get_type(src0->buffer) == ggml_backend_cpu_buffer_type())) {
         return true;
     }
     return false;

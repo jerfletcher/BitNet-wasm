@@ -40,7 +40,7 @@ find_package(Threads REQUIRED)
 
 add_subdirectory(src)
 set(LLAMA_BUILD_SERVER ON CACHE BOOL "Build llama.cpp server" FORCE)
-add_subdirectory(3rdparty/llama.cpp)
+add_subdirectory(3rdparty/BitNet/3rdparty/llama.cpp)
 
 # install
 
