@@ -10,7 +10,13 @@
     "test": "node test-real-model.js",
     "clean": "rm -f bitnet.js bitnet.wasm emcc_*.log",
     "lint": "echo 'No linting configured yet'",
-    "format": "echo 'No formatting configured yet'"
+    "format": "echo 'No formatting configured yet'",
+    "bitnet:setup": "node run-bitnet-cpp.js --help",
+    "bitnet:run": "node run-bitnet-cpp.js --docker",
+    "bitnet:chat": "node run-bitnet-cpp.js --conversation --docker",
+    "bitnet:demo": "node run-bitnet-cpp.js --prompt \"What is artificial intelligence?\" --n-predict 100 --docker",
+    "bitnet:local": "node run-bitnet-cpp.js",
+    "bitnet:local-chat": "node run-bitnet-cpp.js --conversation"
   },
   "keywords": [
     "bitnet",
