@@ -24,7 +24,7 @@ async function quickTest() {
         console.log('✅ BitNet initialized');
         
         // Load model
-        const modelPath = 'models/test/qwen2-0_5b-instruct-q4_0.gguf';
+        const modelPath = 'models/tiny/tinyllama-1.1b-chat-v1.0.q4_0.gguf';
         if (!fs.existsSync(modelPath)) {
             console.log('❌ Model file not found:', modelPath);
             return;

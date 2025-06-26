@@ -2,7 +2,7 @@
 
 This directory contains only the custom BitNet WASM wrapper code:
 
-- `bitnet_inference.cpp/h` - Main BitNet inference wrapper for WASM
+- `bitnet_wasm.cpp/h` - Main BitNet inference wrapper for WASM
 - `bitnet_main.js` - JavaScript interface for the WASM module  
 - `build-info.cpp` - Build information utilities
 - `CMakeLists.txt` - Build configuration referencing 3rdparty code

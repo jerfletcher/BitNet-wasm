@@ -16,7 +16,7 @@
 #include "common.h"
 #include "sampling.h"
 #include "ggml-bitnet.h"
-#include "bitnet_inference.h"
+#include "bitnet_wasm.h"
 
 // Global state using real llama.cpp structures
 static struct common_init_result g_init_result = {};
@@ -85,7 +85,7 @@ extern "C" {
             // Set up model parameters using common_params with WASM memory safety
             common_params params;
             params.model = temp_path;
-            params.n_ctx = 64;    // Very small for WASM memory bounds fix
+            params.n_ctx = 16;    // Ultra minimal for WASM memory bounds fix
             params.n_batch = 4;   // Very small for WASM memory bounds fix
             params.cpuparams.n_threads = 1; // Single thread for WASM
             params.cpuparams_batch.n_threads = 1; // Single thread for batch processing
@@ -172,6 +172,8 @@ extern "C" {
             std::cout << "Model loaded successfully!" << std::endl;
             std::cout << "Model vocab size: " << llama_n_vocab(g_init_result.model) << std::endl;
             
+            std::cout << "✓ About to start context creation with wllama retry strategy..." << std::endl;
+            
             // Fix tokenizer configuration issues for BitNet models
             std::cout << "Applying BitNet model fixes..." << std::endl;
             
@@ -223,18 +225,23 @@ extern "C" {
             // Create context manually with safer parameters for WASM
             llama_context_params ctx_params = common_context_params_to_llama(params);
             
-            // Override potentially problematic settings for WASM alignment safety
-            ctx_params.n_ctx = 64;            // Very small for memory bounds fix
-            ctx_params.n_batch = 4;           // Very small for memory bounds fix
-            ctx_params.n_ubatch = 4;          // Match batch size
+            // Override potentially problematic settings for WASM memory constraints
+            ctx_params.n_ctx = 16;            // Ultra minimal context for memory bounds fix
+            ctx_params.n_batch = 1;           // Single token batch for memory bounds fix
+            ctx_params.n_ubatch = 1;          // Match batch size
             ctx_params.flash_attn = false;    // Definitely no flash attention
-            ctx_params.type_k = GGML_TYPE_F16; // Use F16 for KV cache
-            ctx_params.type_v = GGML_TYPE_F16;
+            ctx_params.type_k = GGML_TYPE_F32; // Use F32 instead of F16 for better WASM compatibility
+            ctx_params.type_v = GGML_TYPE_F32; // Use F32 instead of F16 for better WASM compatibility
             ctx_params.logits_all = false;    // Only compute logits when needed
             ctx_params.embeddings = false;    // Don't compute embeddings
             ctx_params.offload_kqv = false;   // No GPU offloading in WASM
+            // ctx_params.no_kv_offload = true;  // Parameter not available in this version
             
-            // Debug context parameters
+            // WASM-specific memory optimizations
+            // ctx_params.mul_mat_q = false;     // Parameter not available in this version
+            ctx_params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_NONE; // Disable RoPE scaling
+            
+            // Debug context parameters with WASM memory info
             std::cout << "Context params: n_ctx=" << ctx_params.n_ctx 
                       << ", n_batch=" << ctx_params.n_batch 
                       << ", n_ubatch=" << ctx_params.n_ubatch 
@@ -243,10 +250,41 @@ extern "C" {
                       << ", type_v=" << ctx_params.type_v 
                       << ", logits_all=" << ctx_params.logits_all << std::endl;
             
-            g_init_result.context = llama_new_context_with_model(g_init_result.model, ctx_params);
+            // Use wllama's proven approach: llama_init_from_model with 1024-step retry
+            std::cout << "Attempting context creation using wllama's proven retry strategy..." << std::endl;
+            
+            g_init_result.context = nullptr;
+            int retry_n_ctx = 4096; // Start with much larger size since retry strategy should work
+            
+            // Implement wllama's exact retry strategy - reduce by 1024 each time
+            for (; retry_n_ctx > 0; retry_n_ctx -= 1024) {
+                ctx_params.n_ctx = retry_n_ctx;
+                
+                std::cout << "Attempting context creation with n_ctx=" << ctx_params.n_ctx << std::endl;
+                
+                // Use llama_new_context_with_model like BitNet fork expects (not llama_init_from_model)
+                g_init_result.context = llama_new_context_with_model(g_init_result.model, ctx_params);
+                
+                if (g_init_result.context != nullptr) {
+                    std::cout << "✅ Success! Context created with n_ctx=" << ctx_params.n_ctx << std::endl;
+                    break; // Success
+                }
+                
+                std::cout << "Context creation failed with n_ctx=" << ctx_params.n_ctx 
+                         << ", retrying with n_ctx=" << (retry_n_ctx - 1024) << std::endl;
+                
+                if (retry_n_ctx <= 1024) {
+                    // Final attempt with minimal context
+                    ctx_params.n_ctx = 512;
+                    std::cout << "Final attempt with minimal n_ctx=512" << std::endl;
+                    g_init_result.context = llama_new_context_with_model(g_init_result.model, ctx_params);
+                    break;
+                }
+            }
             
             if (!g_init_result.context) {
-                std::cerr << "Failed to create context" << std::endl;
+                std::cerr << "❌ All retry attempts failed. Model too large for WASM memory constraints." << std::endl;
+                std::cerr << "SOLUTION: Use a smaller model (e.g., TinyLlama ~100MB) or increase WASM memory limits." << std::endl;
                 llama_free_model(g_init_result.model);
                 g_init_result.model = nullptr;
                 return 0;

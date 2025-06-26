@@ -62,7 +62,7 @@ Aborted(alignment fault)
 RuntimeError: memory access out of bounds
 ```
 **Diagnosis**: Model loads successfully but exceeds memory during tensor processing  
-**Solution**: Reduce context size in `src/bitnet_inference.cpp`:
+**Solution**: Reduce context size in `src/bitnet_wasm.cpp`:
 ```cpp
 params.n_ctx = 128;    // Reduce from 256
 params.n_batch = 8;    // Reduce from 16  
@@ -367,7 +367,7 @@ git clone --recursive https://github.com/jerfletcher/BitNet-wasm.git
 cd BitNet-wasm
 npm install
 
-# 2. Make changes to C++ source (src/bitnet_inference.cpp)
+# 2. Make changes to C++ source (src/bitnet_wasm.cpp)
 # 3. Build and test
 npm run build
 npm test
@@ -379,8 +379,8 @@ node quick-test.js
 ### Project Structure
 ```
 src/
-├── bitnet_inference.cpp    # Main WASM interface using real llama.cpp APIs
-├── bitnet_inference.h      # Header with function declarations
+├── bitnet_wasm.cpp         # Main WASM interface using real llama.cpp APIs
+├── bitnet_wasm.h           # Header with function declarations
 ├── build-info.cpp          # Build metadata for llama.cpp compatibility
 └── CMakeLists.txt          # Build configuration
 
@@ -398,7 +398,7 @@ bitnet.wasm                 # Compiled WebAssembly module
 ```
 
 ### Key Files and Their Roles
-- **`src/bitnet_inference.cpp`**: Main implementation using authentic llama.cpp/BitNet APIs
+- **`src/bitnet_wasm.cpp`**: Main implementation using authentic llama.cpp/BitNet APIs
 - **`build.sh`**: Emscripten build script with WASM-specific configurations
 - **`test-real-model.js`**: Playwright browser test suite
 - **`quick-test.js`**: Development testing script for Node.js
@@ -467,7 +467,7 @@ cp bitnet.js bitnet.wasm your-project/
 ### 📋 Integration Resources
 - **Examples**: See `test-real-model.js` and `quick-test.js` for usage patterns
 - **Build Process**: Study `build.sh` for WASM compilation details  
-- **API Reference**: Examine `src/bitnet_inference.h` for function signatures
+- **API Reference**: Examine `src/bitnet_wasm.h` for function signatures
 - **Testing**: Use `npm test` approach for validation in your projects
 
 ## Contributing
@@ -480,7 +480,7 @@ cp bitnet.js bitnet.wasm your-project/
 5. **Test** your changes: `npm test`
 
 ### Code Guidelines
-- **C++ Changes**: Edit `src/bitnet_inference.cpp` using real llama.cpp/BitNet APIs
+- **C++ Changes**: Edit `src/bitnet_wasm.cpp` using real llama.cpp/BitNet APIs
 - **Build Changes**: Modify `build.sh` for WASM compilation adjustments
 - **Testing**: Update `test-real-model.js` for new features
 - **Documentation**: Keep README.md current with changes
@@ -500,7 +500,7 @@ cp bitnet.js bitnet.wasm your-project/
 
 ### Debugging Tips
 - Use `console.log` debugging in `test-real-model.js`
-- Add C++ debug prints to `bitnet_inference.cpp` (they appear in browser console)
+- Add C++ debug prints to `bitnet_wasm.cpp` (they appear in browser console)
 - Test with `quick-test.js` for faster iteration
 - Check for NaN/Inf issues in logits during inference
 
