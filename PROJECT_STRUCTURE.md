@@ -10,6 +10,7 @@ This project is now cleanly organized to reference 3rdparty code directly:
 
 ## Generated Files  
 - `bitnet.wasm` / `bitnet.js` - Built WASM module
+- `include/` - Generated kernel headers (copied from 3rdparty presets)
 - `emsdk/` - Emscripten SDK
 
 ## Test & Demo Files
