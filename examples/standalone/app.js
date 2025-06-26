@@ -4,13 +4,7 @@
 // Import BitNet-WASM module from CDN (for GitHub Pages demo)
 // In your own project, you would use a relative path like './bitnet.js'
 import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
-// import BitNetModule from '../bitnet.js';
-// Initialize Dexie.js for IndexedDB model storage
-const db = new Dexie('BitNetModelsDB');
-db.version(1).stores({
-    models: 'url, name, data, timestamp, size'
-});
-
+//import BitNetModule from '../../bitnet.js';
 // Global variables
 let bitnet = null;
 let modelData = null;
@@ -18,42 +12,14 @@ let modelData = null;
 // DOM elements
 const statusElement = document.getElementById('status');
 const outputElement = document.getElementById('output');
-const dbStatusElement = document.getElementById('db-status');
-const cacheDetailsElement = document.getElementById('cache-details');
 const loadModelButton = document.getElementById('load-model');
-let cachedModelSelect = document.getElementById('cached-model-select');
-if (!cachedModelSelect) {
-    cachedModelSelect = document.createElement('select');
-    cachedModelSelect.id = 'cached-model-select';
-    cachedModelSelect.style.marginLeft = '8px';
-    loadModelButton.parentNode.insertBefore(cachedModelSelect, loadModelButton);
-}
 const runInferenceButton = document.getElementById('run-inference');
 const loadStatusElement = document.getElementById('load-status');
 const progressContainer = document.querySelector('.progress-container');
 const progressBar = document.getElementById('download-progress');
-const saveProgressContainer = document.createElement('div');
-saveProgressContainer.className = 'progress-container';
-saveProgressContainer.style.display = 'none';
-const saveProgressBar = document.createElement('div');
-saveProgressBar.className = 'progress-bar';
-saveProgressBar.id = 'save-progress';
-saveProgressBar.style.width = '0%';        saveProgressBar.textContent = 'Saving to IndexedDB...';
-saveProgressContainer.appendChild(saveProgressBar);
-progressContainer.parentNode.insertBefore(saveProgressContainer, progressContainer.nextSibling);
-
-// Create WASM loading progress bar
-const wasmProgressContainer = document.createElement('div');
-wasmProgressContainer.className = 'progress-container';
-wasmProgressContainer.style.display = 'none';
-wasmProgressContainer.innerHTML = '<div class="progress-label">Loading into WASM...</div>';
-const wasmProgressBar = document.createElement('div');
-wasmProgressBar.className = 'progress-bar';
-wasmProgressBar.id = 'wasm-progress';
-wasmProgressBar.style.width = '0%';
-wasmProgressBar.textContent = '0%';
-wasmProgressContainer.appendChild(wasmProgressBar);
-progressContainer.parentNode.insertBefore(wasmProgressContainer, progressContainer.nextSibling);
+const wasmProgressContainer = document.getElementById('wasm-progress-container');
+const wasmProgressBar = document.getElementById('wasm-progress');
+const clearCacheButton = document.getElementById('clear-cache');
 
 // Tab functionality
 document.querySelectorAll('.tab').forEach(tab => {
@@ -300,9 +266,6 @@ async function initBitNet() {
                 // Add note about demo mode
                 outputElement.textContent += 'Note: Inference will run in demo mode if no model is loaded.\n';
                 
-                // Check IndexedDB cache
-                updateDBStatus();
-                
                 // Setup event listeners
                 setupEventListeners();
             }
@@ -351,12 +314,9 @@ function updateLoadStatus(message, type = '') {
             loadStatusElement.style.display = message ? 'block' : 'none';
             
             // Ensure progress bars stay visible during loading
-            if (type === 'loading' && (progressContainer || wasmProgressContainer)) {
+            if (type === 'loading' && progressContainer) {
                 if (progressContainer && progressContainer.style.display === 'block') {
                     // Keep download progress visible
-                }
-                if (wasmProgressContainer && wasmProgressContainer.style.display === 'block') {
-                    // Keep WASM progress visible
                 }
             }
         }
@@ -373,21 +333,118 @@ function setupEventListeners() {
     // Run inference button
     runInferenceButton.addEventListener('click', runInference);
     
-    // Matrix multiplication button
-    document.getElementById('run-matmul').addEventListener('click', runMatrixMultiplication);
-    
-    // IndexedDB cache buttons
-    document.getElementById('view-cache').addEventListener('click', viewCachedModels);
-    document.getElementById('clear-cache').addEventListener('click', clearModelCache);
+    // Clear cache button
+    clearCacheButton.addEventListener('click', clearModelCache);
 }
 
-// Load a model from URL with IndexedDB caching
-async function loadModel() {
-    let modelUrl = document.getElementById('model-url').value.trim();
-    if (cachedModelSelect && cachedModelSelect.value) {
-        modelUrl = cachedModelSelect.value;
-        document.getElementById('model-url').value = modelUrl;
+// IndexedDB for model caching
+let modelDB = null;
+
+// Initialize IndexedDB for model caching
+async function initModelCache() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('BitNetModelCache', 1);
+        
+        request.onerror = () => reject(request.error);
+        
+        request.onsuccess = () => {
+            modelDB = request.result;
+            resolve(modelDB);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('models')) {
+                const store = db.createObjectStore('models', { keyPath: 'url' });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+        };
+    });
+}
+
+// Get cached model from IndexedDB
+async function getCachedModel(url) {
+    if (!modelDB) return null;
+    
+    return new Promise((resolve, reject) => {
+        const transaction = modelDB.transaction(['models'], 'readonly');
+        const store = transaction.objectStore('models');
+        const request = store.get(url);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+    });
+}
+
+// Clear model cache function
+async function clearModelCache() {
+    try {
+        if (!modelDB) {
+            await initModelCache();
+        }
+        
+        updateLoadStatus('Clearing cache...', 'loading');
+        
+        const transaction = modelDB.transaction(['models'], 'readwrite');
+        const store = transaction.objectStore('models');
+        await store.clear();
+        
+        outputElement.textContent += 'Model cache cleared\n';
+        updateLoadStatus('Cache cleared successfully', 'success');
+        
+        // Update cache info display
+        await displayCacheInfo();
+        
+        setTimeout(() => {
+            updateLoadStatus('', '');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Failed to clear cache:', error);
+        updateLoadStatus(`Error clearing cache: ${error.message}`, 'error');
     }
+}
+
+// Store model in IndexedDB cache
+async function cacheModel(url, arrayBuffer) {
+    if (!modelDB) return;
+    
+    try {
+        const modelData = {
+            url: url,
+            data: arrayBuffer,
+            timestamp: Date.now(),
+            size: arrayBuffer.byteLength
+        };
+        
+        const transaction = modelDB.transaction(['models'], 'readwrite');
+        const store = transaction.objectStore('models');
+        store.put(modelData);
+        
+        // Clean old cache entries (keep only last 3 models)
+        const index = store.index('timestamp');
+        const allModels = [];
+        
+        index.openCursor(null, 'prev').onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                allModels.push(cursor.value);
+                cursor.continue();
+            } else if (allModels.length > 3) {
+                // Delete oldest models
+                for (let i = 3; i < allModels.length; i++) {
+                    store.delete(allModels[i].url);
+                }
+            }
+        };
+    } catch (error) {
+        console.warn('Failed to cache model:', error);
+    }
+}
+
+// Load a model from URL
+async function loadModel() {
+    const modelUrl = document.getElementById('model-url').value.trim();
     
     if (!modelUrl) {
         updateLoadStatus('Please enter a valid model URL', 'error');
@@ -395,6 +452,11 @@ async function loadModel() {
     }
     
     try {
+        // Initialize cache if not already done
+        if (!modelDB) {
+            await initModelCache();
+        }
+        
         // Disable buttons during loading
         loadModelButton.disabled = true;
         
@@ -409,45 +471,34 @@ async function loadModel() {
         updateLoadStatus('Loading model...', 'loading');
         outputElement.textContent += `Loading model from ${modelUrl}...\n`;
         
-        // Extract model name from URL
-        const modelName = modelUrl.split('/').pop();
-        
-        // Check if model exists in IndexedDB (single or chunked)
-        let cachedModels = [];
-        try {
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('IndexedDB query timeout')), 5000)
-            );
-            cachedModels = await Promise.race([
-                db.models.where('url').startsWith(modelUrl).toArray(),
-                timeoutPromise
-            ]);
-        } catch (dbError) {
-            console.warn('IndexedDB query failed:', dbError);
-            // Continue with download if cache check fails
-        }
-        
-        if (cachedModels.length > 0) {
-            // Sort by part number if chunked
-            if (cachedModels.length > 1) {
-                cachedModels.sort((a, b) => {
-                    const getPart = url => parseInt((url.split('#part')[1] || '0'), 10);
-                    return getPart(a.url) - getPart(b.url);
-                });
+        // Check cache first
+        const cachedModel = await getCachedModel(modelUrl);
+        if (cachedModel) {
+            outputElement.textContent += `Found cached model (${formatSize(cachedModel.size)})\n`;
+            updateLoadStatus('Using cached model...', 'loading');
+            
+            // Force garbage collection before loading cached model
+            if (window.gc) {
+                window.gc();
+                outputElement.textContent += `Cleared memory before loading cached model\n`;
             }
-            // Combine chunks
-            let totalSize = cachedModels.reduce((sum, m) => sum + (m.data.byteLength || m.size || 0), 0);
-            let combined = new Uint8Array(totalSize);
-            let pos = 0;
-            for (const m of cachedModels) {
-                combined.set(new Uint8Array(m.data), pos);
-                pos += m.data.byteLength || m.size || 0;
+            
+            // Small delay to ensure memory is settled
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            try {
+                modelData = await loadModelFromArrayBuffer(cachedModel.data, modelUrl);
+                updateLoadStatus('Cached model loaded successfully!', 'success');
+                return;
+            } catch (wasmError) {
+                console.warn('Cached model failed to load, downloading fresh:', wasmError.message);
+                outputElement.textContent += `Cached model failed, downloading fresh...\n`;
+            } finally {
+                // Hide WASM progress bar
+                if (wasmProgressContainer) {
+                    wasmProgressContainer.style.display = 'none';
+                }
             }
-            outputElement.textContent += `Found cached model in IndexedDB: ${modelName} (${formatSize(totalSize)})\n`;
-            updateLoadStatus('Using cached model from IndexedDB', 'success');
-            modelData = await loadModelFromArrayBuffer(combined.buffer, modelUrl);
-            loadModelButton.disabled = false;
-            return;
         }
         
         // Model not in cache, download it
@@ -460,8 +511,14 @@ async function loadModel() {
         progressBar.textContent = 'Downloading...';
         
         try {
-            // Fetch with progress tracking and cache preference
-            const response = await fetch(modelUrl, { cache: 'force-cache' });
+            // Fetch with progress tracking and cache headers
+            const response = await fetch(modelUrl, { 
+                cache: 'force-cache', // Use browser cache if available
+                headers: {
+                    'Cache-Control': 'max-age=86400' // Cache for 24 hours
+                }
+            });
+            
             if (!response.ok) {
                 throw new Error(`Failed to fetch model: ${response.status}`);
             }
@@ -488,7 +545,7 @@ async function loadModel() {
             }
             
             // Combine chunks into a single ArrayBuffer
-            const chunksAll = new Uint8Array(loaded);
+            let chunksAll = new Uint8Array(loaded);
             let position = 0;
             for (const chunk of chunks) {
                 chunksAll.set(chunk, position);
@@ -497,126 +554,52 @@ async function loadModel() {
 
             const arrayBuffer = chunksAll.buffer;
             outputElement.textContent += `Model downloaded: ${formatSize(arrayBuffer.byteLength)}\n`;
+            
+            // Cache the model for future use
+            await cacheModel(modelUrl, arrayBuffer);
+            outputElement.textContent += `Model cached for future use\n`;
 
-
-            // Store in IndexedDB for future use (chunked save with timeout)
-            try {
-                setTimeout(async () => {
-                    try {
-                        // Save in 2MB chunks to prevent IndexedDB corruption
-                        const CHUNK_SIZE = 2 * 1024 * 1024;
-                        let totalParts = 1;
-                        if (arrayBuffer.byteLength > CHUNK_SIZE) {
-                            totalParts = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE);
-                        }
-                        let offset = 0;
-                        let part = 0;
-                        if (totalParts > 1) {
-                            saveProgressContainer.style.display = 'block';
-                        }
-                        
-                        // Reduced timeout and individual transaction per chunk
-                        const dbTimeout = 5000; // 5 seconds per chunk
-                        
-                        while (offset < arrayBuffer.byteLength) {
-                            const end = Math.min(offset + CHUNK_SIZE, arrayBuffer.byteLength);
-                            const chunkData = arrayBuffer.slice(offset, end);
-                            
-                            let retries = 1; // Reduced retries to prevent corruption
-                            while (retries > 0) {
-                                try {
-                                    const timeoutPromise = new Promise((_, reject) => 
-                                        setTimeout(() => reject(new Error('IndexedDB save timeout')), dbTimeout)
-                                    );
-                                    
-                                    const savePromise = new Promise(async (resolve, reject) => {
-                                        try {
-                                            // Force each chunk into separate transaction to prevent corruption
-                                            setTimeout(async () => {
-                                                try {
-                                                    // Close and reopen DB connection for each chunk
-                                                    if (window.dbConnection) {
-                                                        await window.dbConnection.close();
-                                                    }
-                                                    window.dbConnection = await db.open();
-                                                    
-                                                    const result = await db.models.put({
-                                                        url: totalParts > 1 ? `${modelUrl}#part${part}` : modelUrl,
-                                                        name: totalParts > 1 ? `${modelName} (part ${part})` : modelName,
-                                                        data: chunkData,
-                                                        timestamp: new Date().getTime(),
-                                                        size: chunkData.byteLength
-                                                    });
-                                                    resolve(result);
-                                                } catch (error) {
-                                                    reject(error);
-                                                }
-                                            }, 10);
-                                        } catch (error) {
-                                            reject(error);
-                                        }
-                                    });
-                                    
-                                    await Promise.race([savePromise, timeoutPromise]);
-                                    break; // Success, exit retry loop
-                                } catch (error) {
-                                    retries--;
-                                    if (retries === 0) {
-                                        console.warn(`Failed to save chunk ${part}: ${error.message}`);
-                                        break; // Skip this chunk
-                                    }
-                                    // Wait before retry
-                                    await new Promise(resolve => setTimeout(resolve, 1000));
-                                }
-                            }
-                            
-                            part++;
-                            offset = end;
-                            if (totalParts > 1) {
-                                const percent = Math.round((part / totalParts) * 100);
-                                saveProgressBar.style.width = `${percent}%`;                                        saveProgressBar.textContent = `Saving to IndexedDB... ${percent}%`;
-                            }
-                            
-                            // Longer yield between chunks to prevent corruption
-                            await new Promise(resolve => setTimeout(resolve, 50));
-                        }
-                        
-                        if (totalParts > 1) {
-                            outputElement.textContent += `Model saved to IndexedDB in ${part} parts\n`;
-                            saveProgressContainer.style.display = 'none';
-                        } else {
-                            outputElement.textContent += `Model saved to IndexedDB cache\n`;
-                        }
-                        
-                        // Update status after successful save
-                        setTimeout(() => updateDBStatus(), 1000);
-                    } catch (error) {
-                        console.warn('Failed to cache model in IndexedDB:', error);
-                        outputElement.textContent += `Warning: Could not cache model in IndexedDB: ${error.message}\n`;
-                        saveProgressContainer.style.display = 'none';
-                    }
-                }, 0);
-            } catch (dbError) {
-                console.warn('Failed to cache model in IndexedDB:', dbError);
-                outputElement.textContent += `Warning: Could not cache model in IndexedDB: ${dbError.message}\n`;
-                saveProgressContainer.style.display = 'none';
-            }
-
-            // Hide progress bar
+            // Hide download progress bar
             progressContainer.style.display = 'none';
-
-            // Close IndexedDB connection after successful save to prevent corruption
-            if (window.dbConnection) {
-                try {
-                    window.dbConnection.close();
-                    window.dbConnection = null;
-                    console.log('IndexedDB connection closed after save');
-                } catch (error) {
-                    console.warn('Error closing IndexedDB connection:', error);
+            
+            // Force garbage collection and allow memory to settle before WASM loading
+            updateLoadStatus('Preparing for WASM loading...', 'loading');
+            
+            // Clear chunk references to free memory
+            chunks.length = 0;
+            chunksAll = null; // Now this works since chunksAll is declared with let
+            
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+                outputElement.textContent += `Forced garbage collection\n`;
+            }
+            
+            // Wait for memory to settle
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Check memory again before WASM loading
+            const memInfo = performance.memory;
+            if (memInfo) {
+                const usedPercent = (memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100;
+                outputElement.textContent += `Memory usage before WASM load: ${usedPercent.toFixed(1)}%\n`;
+                
+                if (usedPercent > 85) {
+                    outputElement.textContent += `High memory usage detected, forcing additional cleanup...\n`;
+                    
+                    // Additional cleanup attempts
+                    for (let i = 0; i < 3; i++) {
+                        if (window.gc) window.gc();
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    
+                    // Check again
+                    const newUsedPercent = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+                    outputElement.textContent += `Memory usage after cleanup: ${newUsedPercent.toFixed(1)}%\n`;
                 }
             }
 
-            // Load the model (continue even if this fails)
+            // Load the model into WASM
             try {
                 modelData = await loadModelFromArrayBuffer(arrayBuffer, modelUrl);
                 updateLoadStatus('Model loaded successfully!', 'success');
@@ -631,11 +614,19 @@ async function loadModel() {
                     size: arrayBuffer.byteLength,
                     failed: true
                 };
+            } finally {
+                // Hide WASM progress bar
+                if (wasmProgressContainer) {
+                    wasmProgressContainer.style.display = 'none';
+                }
             }
             
         } catch (error) {
             // Hide progress bar on error
             progressContainer.style.display = 'none';
+            if (wasmProgressContainer) {
+                wasmProgressContainer.style.display = 'none';
+            }
             
             outputElement.textContent += `Error loading model: ${error.message}\n`;
             updateLoadStatus(`Error loading model: ${error.message}`, 'error');
@@ -652,6 +643,9 @@ async function loadModel() {
     } finally {
         // Re-enable load button
         loadModelButton.disabled = false;
+        
+        // Update cache info display
+        await displayCacheInfo();
     }
 }
 
@@ -659,9 +653,21 @@ async function loadModel() {
 async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
     let modelPtr = null;
     try {
+        // Show WASM loading progress
+        if (wasmProgressContainer && wasmProgressBar) {
+            wasmProgressContainer.style.display = 'block';
+            wasmProgressBar.style.width = '0%';
+            wasmProgressBar.textContent = 'Initializing...';
+        }
+        
         // Validate WASM module state
         if (!bitnet || !bitnet._malloc || !bitnet._free || !bitnet.HEAPU8) {
             throw new Error('WASM module not properly initialized');
+        }
+        
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '10%';
+            wasmProgressBar.textContent = 'Validating...';
         }
         
         // Validate input
@@ -670,6 +676,11 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
         }
         
         const modelSize = arrayBuffer.byteLength;
+        
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '20%';
+            wasmProgressBar.textContent = 'Checking memory...';
+        }
         
         // Check available memory before allocation
         try {
@@ -687,8 +698,55 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
         
         // Check available memory before allocation
         const memInfo = performance.memory;
-        if (memInfo && memInfo.usedJSHeapSize > memInfo.jsHeapSizeLimit * 0.8) {
-            throw new Error('Insufficient browser memory available');
+        if (memInfo) {
+            const usedPercent = (memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100;
+            outputElement.textContent += `Current memory usage: ${usedPercent.toFixed(1)}%\n`;
+            
+            if (usedPercent > 90) {
+                outputElement.textContent += `High memory usage detected, attempting cleanup...\n`;
+                
+                // Force multiple garbage collections with delays
+                for (let i = 0; i < 5; i++) {
+                    if (window.gc) {
+                        window.gc();
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                }
+                
+                // Check memory again after cleanup
+                const newUsedPercent = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+                outputElement.textContent += `Memory usage after cleanup: ${newUsedPercent.toFixed(1)}%\n`;
+                
+                // Only throw error if still very high after cleanup
+                if (newUsedPercent > 95) {
+                    throw new Error(`Insufficient browser memory available: ${newUsedPercent.toFixed(1)}% used`);
+                }
+            }
+        }
+        
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '30%';
+            wasmProgressBar.textContent = 'Allocating memory...';
+        }
+        
+        // Additional memory pressure relief before allocation
+        const modelSizeMB = modelSize / (1024 * 1024);
+        if (modelSizeMB > 500) { // For models larger than 500MB
+            outputElement.textContent += `Large model detected (${modelSizeMB.toFixed(1)}MB), performing additional memory optimization...\n`;
+            
+            // More aggressive cleanup for large models
+            for (let i = 0; i < 10; i++) {
+                if (window.gc) {
+                    window.gc();
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+            
+            // Check memory one more time
+            if (performance.memory) {
+                const finalUsedPercent = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+                outputElement.textContent += `Final memory check: ${finalUsedPercent.toFixed(1)}% used\n`;
+            }
         }
         
         // Try progressive allocation to detect issues early - skip for large models
@@ -711,6 +769,11 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
             throw new Error('Failed to allocate memory for model');
         }
         
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '40%';
+            wasmProgressBar.textContent = 'Validating heap...';
+        }
+        
         // Validate WASM heap access with buffer checks
         if (!bitnet.HEAPU8 || !bitnet.HEAPU8.buffer) {
             if (modelPtr) bitnet._free(modelPtr);
@@ -731,25 +794,30 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
             throw new Error(`WASM heap access test failed: ${heapError.message}`);
         }
         
-        // Copy model data to WASM memory with error handling and progress
-        wasmProgressContainer.style.display = 'block';
-        wasmProgressBar.style.width = '0%';
-        wasmProgressBar.textContent = 'Loading into WASM...';
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '50%';
+            wasmProgressBar.textContent = 'Copying data...';
+        }
         
-        // Force initial render
-        wasmProgressBar.offsetHeight;
-        
+        // Copy model data to WASM memory with error handling
         try {
             const heapBytes = new Uint8Array(bitnet.HEAPU8.buffer, modelPtr, modelSize);
             const sourceBytes = new Uint8Array(arrayBuffer);
             
-            // Copy in smaller chunks with integrity checks and progress
+            // Copy in smaller chunks with integrity checks
             const chunkSize = 512 * 1024; // 512KB chunks
             const totalChunks = Math.ceil(sourceBytes.length / chunkSize);
             
             for (let i = 0; i < sourceBytes.length; i += chunkSize) {
                 const end = Math.min(i + chunkSize, sourceBytes.length);
                 const chunkIndex = Math.floor(i / chunkSize);
+                
+                // Update progress during copy
+                if (wasmProgressBar) {
+                    const copyProgress = 50 + (chunkIndex / totalChunks) * 30; // 50% to 80%
+                    wasmProgressBar.style.width = `${Math.round(copyProgress)}%`;
+                    wasmProgressBar.textContent = `Loading ${Math.round((chunkIndex / totalChunks) * 100)}%`;
+                }
                 
                 try {
                     // Verify heap is still valid before each chunk
@@ -765,11 +833,6 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
                         throw new Error('Chunk write verification failed');
                     }
                     
-                    // Update progress
-                    const progress = Math.round(((chunkIndex + 1) / totalChunks) * 50); // 50% for copy
-                    wasmProgressBar.style.width = `${progress}%`;
-                    wasmProgressBar.textContent = `Loading... ${progress}%`;
-                    
                 } catch (chunkError) {
                     throw new Error(`Chunk copy failed at ${i}: ${chunkError.message}`);
                 }
@@ -784,85 +847,50 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
                 await new Promise(resolve => setTimeout(resolve, 5));
             }
         } catch (copyError) {
-            wasmProgressContainer.style.display = 'none';
             if (modelPtr) bitnet._free(modelPtr);
             throw new Error(`Failed to copy model data: ${copyError.message}`);
         }
         
-        // Update progress after copy completion
-        wasmProgressBar.style.width = '50%';
-        wasmProgressBar.textContent = 'Initializing...';
-        
-        // Force DOM update before starting model loading
-        wasmProgressBar.offsetHeight;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         outputElement.textContent += `Model data copied to WASM heap\n`;
+        
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '85%';
+            wasmProgressBar.textContent = 'Loading model...';
+        }
         
         // Load model with enhanced timeout and monitoring
         let success = false;
-        let monitorInterval = null;
         
         const loadPromise = new Promise((resolve, reject) => {
             try {
-                // Set up monitoring during model loading with progress updates
-                let lastHeartbeat = Date.now();
-                let progressStep = 50; // Start at 50% (after copy)
-                
-                monitorInterval = setInterval(() => {
-                    if (Date.now() - lastHeartbeat > 8000) {
-                        clearInterval(monitorInterval);
-                        reject(new Error('Model loading heartbeat timeout'));
-                    }
-                    
-                    // Update progress during loading - more aggressive increments
-                    progressStep = Math.min(progressStep + 10, 90);
-                    wasmProgressBar.style.width = `${progressStep}%`;
-                    wasmProgressBar.textContent = `Initializing... ${progressStep}%`;
-                    
-                    // Force DOM update
-                    wasmProgressBar.offsetHeight;
-                }, 500); // Update every 500ms for smoother progress
-                
                 // Attempt model loading with different function names
                 let result = false;
                 if (typeof bitnet._bitnet_load_model === 'function') {
                     result = bitnet._bitnet_load_model(modelPtr, modelSize);
-                    lastHeartbeat = Date.now();
                 } else if (typeof bitnet._load_model === 'function') {
                     result = bitnet._load_model(modelPtr, modelSize);
-                    lastHeartbeat = Date.now();
                 } else {
-                    clearInterval(monitorInterval);
                     reject(new Error('Model loading function not found in WASM module'));
                     return;
                 }
                 
-                clearInterval(monitorInterval);
-                
-                // Complete progress with visible update
-                wasmProgressBar.style.width = '100%';
-                wasmProgressBar.textContent = 'Complete!';
-                
-                // Force DOM update
-                wasmProgressBar.offsetHeight;
-                
                 resolve(result === 1);
                 
             } catch (loadError) {
-                if (monitorInterval) clearInterval(monitorInterval);
                 reject(new Error(`WASM model loading failed: ${loadError.message}`));
             }
         });
         
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => {
-                if (monitorInterval) clearInterval(monitorInterval);
-                reject(new Error('Model loading timeout'));
-            }, 20000) // Reduced timeout
+            setTimeout(() => reject(new Error('Model loading timeout')), 20000)
         );
         
         success = await Promise.race([loadPromise, timeoutPromise]);
+        
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '95%';
+            wasmProgressBar.textContent = 'Finalizing...';
+        }
         
         // Always free temporary memory safely
         if (modelPtr && bitnet && bitnet._free) {
@@ -875,17 +903,23 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
         }
         
         if (!success) {
-            wasmProgressContainer.style.display = 'none';
             throw new Error('Failed to load model in WASM');
         }
         
-        // Hide progress bar after successful load with longer delay
-        setTimeout(() => {
-            wasmProgressContainer.style.display = 'none';
-        }, 3000); // Increased to 3 seconds so users can see "Complete!"
+        if (wasmProgressBar) {
+            wasmProgressBar.style.width = '100%';
+            wasmProgressBar.textContent = 'Complete!';
+        }
         
         outputElement.textContent += `Model loaded successfully\n`;
         updateLoadStatus('Model ready for inference!', 'success');
+        
+        // Hide progress bar after a brief delay
+        setTimeout(() => {
+            if (wasmProgressContainer) {
+                wasmProgressContainer.style.display = 'none';
+            }
+        }, 1000);
         
         // Return model data reference
         return {
@@ -895,13 +929,17 @@ async function loadModelFromArrayBuffer(arrayBuffer, modelUrl) {
         
     } catch (error) {
         // Emergency cleanup
-        wasmProgressContainer.style.display = 'none';
         if (modelPtr && bitnet && bitnet._free) {
             try {
                 bitnet._free(modelPtr);
             } catch (freeError) {
                 console.error('Emergency cleanup failed:', freeError);
             }
+        }
+        
+        // Hide progress bar on error
+        if (wasmProgressContainer) {
+            wasmProgressContainer.style.display = 'none';
         }
         
         outputElement.textContent += `Error processing model: ${error.message}\n`;
@@ -1142,297 +1180,13 @@ async function runInference() {
     }
 }
 
-// Run matrix multiplication
-function runMatrixMultiplication() {
-    const matrixAText = document.getElementById('matrix-a').value;
-    const matrixBText = document.getElementById('matrix-b').value;
-    const resultElement = document.getElementById('matmul-result');
-    
-    try {
-        // Parse input matrices
-        const matrixA = parseMatrix(matrixAText);
-        const matrixB = parseMatrix(matrixBText);
-        
-        // Validate matrices
-        if (matrixA.length !== 9 || matrixB.length !== 9) {
-            throw new Error('Both matrices must have 9 elements (3x3)');
-        }
-        
-        // Perform matrix multiplication (simulated for demo)
-        // In a real implementation, you would use BitNet's WASM functions
-        const result = simulateMatrixMultiplication(matrixA, matrixB);
-        
-        // Format output
-        let output = 'Original Matrix A (3x3):\n';
-        for (let i = 0; i < 3; i++) {
-            output += matrixA.slice(i * 3, (i + 1) * 3).map(x => x.toFixed(4)).join('  ') + '\n';
-        }
-        
-        output += '\nOriginal Matrix B (3x3):\n';
-        for (let i = 0; i < 3; i++) {
-            output += matrixB.slice(i * 3, (i + 1) * 3).map(x => x.toFixed(4)).join('  ') + '\n';
-        }
-        
-        output += '\nResult (A × B):\n';
-        for (let i = 0; i < 3; i++) {
-            output += result.slice(i * 3, (i + 1) * 3).map(x => x.toFixed(4)).join('  ') + '\n';
-        }
-        
-        resultElement.textContent = output;
-        
-    } catch (error) {
-        resultElement.textContent = `Error: ${error.message}`;
-        console.error('Error in matrix multiplication:', error);
-    }
-}
-
-// Parse matrix from text input
-function parseMatrix(text) {
-    return text.split(',')
-        .map(x => x.trim())
-        .filter(x => x.length > 0)
-        .map(x => parseFloat(x));
-}
-
-// Simulate matrix multiplication (3x3)
-function simulateMatrixMultiplication(matrixA, matrixB) {
-    const result = new Array(9).fill(0);
-    
-    for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-            let sum = 0;
-            for (let k = 0; k < 3; k++) {
-                sum += matrixA[i * 3 + k] * matrixB[k * 3 + j];
-            }
-            result[i * 3 + j] = sum;
-        }
-    }
-    
-    return result;
-}
-
-// Update IndexedDB status
-async function updateDBStatus() {
-    // Use a completely non-blocking approach that won't crash the browser
-    dbStatusElement.textContent = 'Checking cache...';
-    dbStatusElement.className = '';
-    
-    // Use setImmediate equivalent to avoid blocking
-    setTimeout(async () => {
-        try {
-            // Test IndexedDB availability first
-            if (!window.indexedDB) {
-                throw new Error('IndexedDB not supported');
-            }
-            
-            // Ultra-short timeout to prevent any hanging
-            const quickTimeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Database timeout')), 1000)
-            );
-            
-            // Test database connection
-            const dbTest = await Promise.race([
-                new Promise(async (resolve, reject) => {
-                    try {
-                        // Simple count operation to verify it works
-                        const count = await db.models.count();
-                        resolve(count);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }),
-                quickTimeout
-            ]);
-            
-            dbStatusElement.textContent = `IndexedDB: Available (${dbTest} models)`;
-            dbStatusElement.className = 'success';
-            
-            // Populate dropdown safely in background
-            setTimeout(() => safeUpdateDropdown(), 100);
-            
-        } catch (error) {
-            console.warn('IndexedDB unavailable:', error.message);
-            dbStatusElement.textContent = 'IndexedDB: Unavailable';
-            dbStatusElement.className = 'error';
-            
-            // Immediately disable cache features
-            disableCacheFeatures();
-        }
-    }, 0);
-}
-
-// Safe dropdown update function
-async function safeUpdateDropdown() {
-    try {
-        const quickTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Dropdown timeout')), 1000)
-        );
-        
-        const models = await Promise.race([
-            db.models.toArray(),
-            quickTimeout
-        ]);
-        
-        if (models && models.length > 0) {
-            const modelGroups = {};
-            models.forEach(model => {
-                if (model && model.url) {
-                    const baseUrl = model.url.split('#part')[0];
-                    if (!modelGroups[baseUrl]) modelGroups[baseUrl] = [];
-                    modelGroups[baseUrl].push(model);
-                }
-            });
-            
-            let options = '<option value="">-- Select cached model --</option>';
-            for (const baseUrl in modelGroups) {
-                const group = modelGroups[baseUrl];
-                const totalSize = group.reduce((sum, m) => sum + (m.size || 0), 0);
-                const name = (group[0] && group[0].name) ? group[0].name.replace(/ \(part.*\)/, '') : 'Model';
-                options += `<option value="${baseUrl}">${name} (${formatSize(totalSize)})</option>`;
-            }
-            
-            if (cachedModelSelect) {
-                cachedModelSelect.innerHTML = options;
-                cachedModelSelect.disabled = false;
-            }
-            
-            dbStatusElement.textContent = `${Object.keys(modelGroups).length} model(s) cached`;
-        } else {
-            if (cachedModelSelect) {
-                cachedModelSelect.innerHTML = '<option value="">-- No cached models --</option>';
-            }
-            dbStatusElement.textContent = 'No models in cache';
-        }
-    } catch (error) {
-        console.warn('Error updating dropdown:', error.message);
-        disableCacheFeatures();
-    }
-}
-
-// Disable cache features safely
-function disableCacheFeatures() {
-    if (cachedModelSelect) {
-        cachedModelSelect.innerHTML = '<option value="">-- Cache unavailable --</option>';
-        cachedModelSelect.disabled = true;
-    }
-    
-    const viewCacheBtn = document.getElementById('view-cache');
-    const clearCacheBtn = document.getElementById('clear-cache');
-    if (viewCacheBtn) viewCacheBtn.disabled = true;
-    if (clearCacheBtn) clearCacheBtn.disabled = true;
-}
-
-// View cached models - safe non-blocking version
-async function viewCachedModels() {
-    cacheDetailsElement.textContent = 'Loading cache details...';
-    cacheDetailsElement.style.display = 'block';
-    
-    setTimeout(async () => {
-        try {
-            // Very short timeout to prevent hanging
-            const quickTimeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Cache view timeout')), 2000)
-            );
-            
-            const models = await Promise.race([
-                db.models.toArray(),
-                quickTimeout
-            ]);
-            
-            if (!models || models.length === 0) {
-                cacheDetailsElement.textContent = 'No cached models found.';
-                return;
-            }
-            
-            // Group models by base URL safely
-            const modelGroups = {};
-            models.forEach(model => {
-                if (model && model.url) {
-                    const baseUrl = model.url.split('#part')[0];
-                    if (!modelGroups[baseUrl]) {
-                        modelGroups[baseUrl] = [];
-                    }
-                    modelGroups[baseUrl].push(model);
-                }
-            });
-            
-            let details = '<h3>Cached Models:</h3>';
-            for (const baseUrl in modelGroups) {
-                const group = modelGroups[baseUrl];
-                const totalSize = group.reduce((sum, m) => sum + (m.size || 0), 0);
-                const name = (group[0] && group[0].name) ? group[0].name.replace(/ \(part.*\)/, '') : 'Model';
-                const parts = group.length > 1 ? ` (${group.length} parts)` : '';
-                
-                details += `<div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd;">`;
-                details += `<strong>${name}</strong>${parts}<br>`;
-                details += `Size: ${formatSize(totalSize)}<br>`;
-                details += `URL: ${baseUrl}<br>`;
-                if (group[0] && group[0].timestamp) {
-                    details += `Cached: ${new Date(group[0].timestamp).toLocaleString()}`;
-                }
-                details += `</div>`;
-            }
-            
-            cacheDetailsElement.innerHTML = details;
-            
-        } catch (error) {
-            console.warn('Error viewing cached models:', error.message);
-            cacheDetailsElement.textContent = `Error loading cache details: ${error.message}`;
-        }
-    }, 0);
-}
-
-// Clear model cache - safe non-blocking version
-async function clearModelCache() {
-    if (!confirm('Are you sure you want to clear all cached models?')) {
-        return;
-    }
-    
-    dbStatusElement.textContent = 'Clearing cache...';
-    dbStatusElement.className = 'loading';
-    cacheDetailsElement.textContent = '';
-    cacheDetailsElement.style.display = 'none';
-    
-    setTimeout(async () => {
-        try {
-            // Very short timeout to prevent hanging
-            const quickTimeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Clear cache timeout')), 3000)
-            );
-            
-            await Promise.race([
-                db.models.clear(),
-                quickTimeout
-            ]);
-            
-            dbStatusElement.textContent = 'Cache cleared successfully';
-            dbStatusElement.className = 'success';
-            
-            // Update dropdown
-            if (cachedModelSelect) {
-                cachedModelSelect.innerHTML = '<option value="">-- No cached models --</option>';
-            }
-            
-            // Refresh status after a delay
-            setTimeout(() => updateDBStatus(), 1000);
-            
-        } catch (error) {
-            console.warn('Error clearing cache:', error.message);
-            dbStatusElement.textContent = `Error clearing cache: ${error.message}`;
-            dbStatusElement.className = 'error';
-        }
-    }, 0);
-}
-
-// Format file size
+// Utility function to format file sizes
 function formatSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    
+    if (bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
 // Global cleanup on page unload to prevent Chrome crashes
@@ -1460,15 +1214,6 @@ function performEmergencyCleanup() {
             }
         }
         
-        // Close IndexedDB connections
-        try {
-            if (db && db.close) {
-                db.close();
-            }
-        } catch (error) {
-            console.error('DB cleanup error:', error);
-        }
-        
     } catch (error) {
         console.error('Emergency cleanup failed:', error);
     }
@@ -1490,7 +1235,14 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', initBitNet);
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    // Display cache info first
+    await displayCacheInfo();
+    
+    // Then initialize BitNet
+    await initBitNet();
+});
 
 // Add spinner animation CSS
 const style = document.createElement('style');
@@ -1511,52 +1263,38 @@ function addGlobalErrorHandlers() {
     });
 }
 
-// Add beforeunload handler to safely close IndexedDB connections
-window.addEventListener('beforeunload', function(event) {
-    console.log('Browser closing - cleaning up IndexedDB connections');
-    
-    // Close any open IndexedDB connections
-    if (window.dbConnection) {
-        try {
-            window.dbConnection.close();
-            window.dbConnection = null;
-            console.log('IndexedDB connection closed safely');
-        } catch (error) {
-            console.warn('Error closing IndexedDB connection:', error);
-        }
-    }
-    
-    // Force close any remaining connections
-    try {
-        indexedDB.databases().then(databases => {
-            databases.forEach(db => {
-                if (db.name === 'ModelCacheDB') {
-                    console.log('Force closing ModelCacheDB');
-                }
-            });
-        }).catch(() => {
-            // Ignore errors during cleanup
-        });
-    } catch (error) {
-        // Ignore errors during cleanup
-    }
-});
-
-// Add pagehide handler for mobile browsers
-window.addEventListener('pagehide', function(event) {
-    console.log('Page hiding - cleaning up IndexedDB connections');
-    
-    if (window.dbConnection) {
-        try {
-            window.dbConnection.close();
-            window.dbConnection = null;
-        } catch (error) {
-            console.warn('Error closing IndexedDB connection on pagehide:', error);
-        }
-    }
-});
-
 // Start monitoring after initialization
 setTimeout(startMemoryMonitoring, 3000);
 
 // Memory pressure monitoring for Chrome stability
+
+// Display cache information to user
+async function displayCacheInfo() {
+    const cacheInfoElement = document.getElementById('cache-info');
+    if (!cacheInfoElement) return;
+    
+    try {
+        if (!modelDB) {
+            await initModelCache();
+        }
+        
+        const transaction = modelDB.transaction(['models'], 'readonly');
+        const store = transaction.objectStore('models');
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+            const models = request.result;
+            if (models.length === 0) {
+                cacheInfoElement.textContent = 'No models cached yet';
+            } else {
+                const totalSize = models.reduce((sum, model) => sum + model.size, 0);
+                cacheInfoElement.textContent = `${models.length} model(s) cached (${formatSize(totalSize)} total)`;
+            }
+            cacheInfoElement.style.display = 'block';
+        };
+    } catch (error) {
+        console.warn('Failed to display cache info:', error);
+    }
+}
+
+// Initialize everything when DOM is ready

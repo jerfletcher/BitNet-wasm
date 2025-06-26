@@ -6,7 +6,7 @@
   "scripts": {
     "build": "./build.sh",
     "setup": "./setup_and_build.sh",
-    "serve": "python3 -m http.server 8000",
+    "serve": "node server.js",
     "test": "node test-real-model.js",
     "clean": "rm -f bitnet.js bitnet.wasm emcc_*.log",
     "lint": "echo 'No linting configured yet'",

@@ -42,11 +42,7 @@ This project leverages three key submodules that work together to provide comple
 - **Role**: The original BitNet.cpp implementation from Microsoft Research
 - **Purpose**: Primary source for BitNet quantization algorithms and model format
 - **What we use**: Core inference logic, quantization schemes, GGUF handling
-
-### 🔧 **3rdparty/llama.cpp** (Foundation) 
-- **Role**: The underlying framework that BitNet.cpp is based on
-- **Purpose**: Provides GGML tensor operations and model infrastructure
-- **What we use**: GGUF parsing, tensor operations, memory management
+- this includes the llama.cpp fork with modified functions for inference.
 
 ### 🌐 **3rdparty/llama-cpp-wasm** (Model)
 - **Role**: Reference WASM implementation for guidance

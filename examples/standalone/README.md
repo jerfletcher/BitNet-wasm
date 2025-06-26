@@ -5,16 +5,14 @@ This is a demonstration of the BitNet-WASM library, which provides efficient 2-b
 ## Features
 
 - **Model Inference**: Load and run inference with BitNet models
-- **IndexedDB Caching**: Models are cached in your browser's IndexedDB for faster subsequent loads
 - **Matrix Multiplication**: Demonstrate BitNet's 2-bit quantized matrix multiplication
 - **Integration Example**: Shows how to integrate BitNet-WASM in your own projects
 
 ## How to Use
 
-1. View the IndexedDB cache status to see if any models are already stored
-2. Click the "Load Model" button to download and cache the default model
-3. Enter your input text in the text area
-4. Click "Run Inference" to see the model's output
+1. Click the "Load Model" button to download the default model (note: models are downloaded fresh each time)
+2. Enter your input text in the text area
+3. Click "Run Inference" to see the model's output
 
 ## Integration Guide
 
@@ -50,9 +48,9 @@ cd BitNet-wasm
 
 ## Technical Details
 
-- The demo uses [Dexie.js](https://dexie.org/) for IndexedDB access
-- Models are automatically cached and managed to prevent excessive storage use
+- The demo downloads models fresh each time for simplicity
 - The implementation follows the integration guide from the BitNet-WASM documentation
+- Uses a Node.js Express server for local development
 
 ## Source Code
 

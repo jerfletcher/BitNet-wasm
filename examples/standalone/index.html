@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitNet-WASM Demo</title>
-    <!-- Add Dexie.js for IndexedDB support -->
-    <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -161,27 +159,6 @@
             color: white;
             transition: width 0.3s;
         }
-        .db-info {
-            background-color: #e8f4f8;
-            border-left: 4px solid #3498db;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }
-        .db-info h3 {
-            margin-top: 0;
-            color: #2c3e50;
-        }
-        .db-actions {
-            margin-top: 10px;
-        }
-        .db-actions button {
-            background-color: #2c3e50;
-            margin-right: 10px;
-        }
-        .db-actions button:hover {
-            background-color: #1a252f;
-        }
         .github-corner {
             position: absolute;
             top: 0;
@@ -285,39 +262,30 @@
         <div id="status" class="status loading">Initializing BitNet-WASM module...</div>
 
         <div class="card">
-            <div class="card-header">IndexedDB Model Storage</div>
-            <div class="card-body">
-                <p>BitNet-WASM can store models in your browser's IndexedDB for faster loading on subsequent visits.</p>
-                
-                <div class="db-info">
-                    <h3>Model Cache Status</h3>
-                    <div id="db-status">Checking IndexedDB cache...</div>
-                    <div class="db-actions">
-                        <button id="view-cache">View Cached Models</button>
-                        <button id="clear-cache">Clear Cache</button>
-                    </div>
-                </div>
-                
-                <div id="cache-details" class="result" style="display: none;">
-                    No cached models found.
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
             <div class="card-header">Model Inference Demo</div>
             <div class="card-body">
                 <div class="input-group">
                     <label for="model-url">Model URL:</label>
                     <input type="text" id="model-url" value="https://huggingface.co/microsoft/BitNet-b1.58-2B-4T-gguf/resolve/main/ggml-model-i2_s.gguf">
-                    <p class="note">Default: BitNet-b1.58-2B-4T model from Microsoft on HuggingFace (1.1GB)</p>
+                    <p class="note">Default: BitNet-b1.58-2B-4T model from Microsoft on HuggingFace (1.1GB) - Uses browser cache + IndexedDB for faster subsequent loads</p>
                     
                     <div class="progress-container" style="display: none;">
+                        <div class="progress-label">Downloading Model...</div>
                         <div class="progress-bar" id="download-progress">0%</div>
                     </div>
+                    
+                    <div class="progress-container" id="wasm-progress-container" style="display: none;">
+                        <div class="progress-label">Loading into WASM...</div>
+                        <div class="progress-bar" id="wasm-progress">0%</div>
+                    </div>
+                    
+                    <div id="cache-info" class="note" style="margin-top: 10px; display: none;"></div>
                 </div>
                 
-                <button id="load-model" disabled>Load Model</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button id="load-model" disabled>Load Model</button>
+                    <button id="clear-cache" style="background-color: #e74c3c;">Clear Cache</button>
+                </div>
                 <div id="load-status" class="status" style="display: none;"></div>
                 
                 <div class="input-group">
@@ -333,28 +301,7 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">Matrix Multiplication Demo</div>
-            <div class="card-body">
-                <p>This demo shows how to use BitNet for matrix multiplication with 1-bit quantization.</p>
-                
-                <div class="input-group">
-                    <label for="matrix-a">Input Matrix (comma-separated values):</label>
-                    <textarea id="matrix-a">1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0</textarea>
-                </div>
-                
-                <div class="input-group">
-                    <label for="matrix-b">Weight Matrix (comma-separated values):</label>
-                    <textarea id="matrix-b">0.1, 0.2, 0.3, -0.1, -0.2, -0.3, 0.4, 0.5, 0.6</textarea>
-                </div>
-                
-                <button id="run-matmul">Run Matrix Multiplication</button>
-                
-                <div id="matmul-result" class="result">
-                    Run the operation to see results
-                </div>
-            </div>
-        </div>
+
 
         <div class="card">
             <div class="card-header">WASM Module Output</div>
