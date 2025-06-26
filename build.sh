@@ -23,8 +23,8 @@ WARNING_FLAGS="-Wno-deprecated-declarations -Wno-incompatible-pointer-types -Wno
 OUTPUT_FILE="bitnet.wasm"
 OUTPUT_JS_FILE="bitnet.js" # Emscripten generates a JS loader
 
-# Emscripten compiler flags with assertions enabled for debugging
-EMCC_FLAGS="-O0 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8','HEAPU32','HEAPF32','HEAP8','HEAP32','lengthBytesUTF8','stringToUTF8','UTF8ToString'] -s EXPORTED_FUNCTIONS=['_malloc','_free','_bitnet_init','_bitnet_load_model_from_memory','_bitnet_run_inference_simple','_bitnet_is_model_loaded','_bitnet_get_vocab_size','_bitnet_get_embedding_dim','_bitnet_get_num_layers','_bitnet_free_model','_bitnet_cleanup'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=32MB -s MAXIMUM_MEMORY=4GB -s STACK_SIZE=2MB -s DISABLE_EXCEPTION_CATCHING=0 -s ASSERTIONS=1 -s SAFE_HEAP=0 -s USE_PTHREADS=0 -s PTHREAD_POOL_SIZE=0 --bind -s ERROR_ON_UNDEFINED_SYMBOLS=0"
+# Emscripten compiler flags - Maximum memory for WASM bounds fix
+EMCC_FLAGS="-O0 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8','HEAPU32','HEAPF32','HEAP8','HEAP32','lengthBytesUTF8','stringToUTF8','UTF8ToString'] -s EXPORTED_FUNCTIONS=['_malloc','_free','_bitnet_init','_bitnet_load_model_from_memory','_bitnet_run_inference_simple','_bitnet_is_model_loaded','_bitnet_get_vocab_size','_bitnet_get_embedding_dim','_bitnet_get_num_layers','_bitnet_free_model','_bitnet_cleanup'] -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1GB -s MAXIMUM_MEMORY=4GB -s STACK_SIZE=32MB -s DISABLE_EXCEPTION_CATCHING=0 -s ASSERTIONS=1 -s USE_PTHREADS=0 -s PTHREAD_POOL_SIZE=0 --bind -s ERROR_ON_UNDEFINED_SYMBOLS=0"
 
 # Prepare bitnet-lut-kernels.h by copying a preset one to local include (using x86 TL2 for WASM)
 PRESET_KERNEL_HEADER="3rdparty/BitNet/preset_kernels/bitnet_b1_58-3B/bitnet-lut-kernels-tl2.h"

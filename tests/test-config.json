@@ -1,0 +1,7 @@
+{
+  "model_path": "./models/test-model-q4_0.gguf",
+  "quantization": "Q4_0",
+  "context_size": 256,
+  "batch_size": 16,
+  "expected_alignment": "WASM compatible"
+}
