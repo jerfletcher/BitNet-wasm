@@ -284,7 +284,7 @@ extern "C" {
             
             if (!g_init_result.context) {
                 std::cerr << "❌ All retry attempts failed. Model too large for WASM memory constraints." << std::endl;
-                std::cerr << "SOLUTION: Use a smaller model (e.g., TinyLlama ~100MB) or increase WASM memory limits." << std::endl;
+                std::cerr << "SOLUTION: Use a BitNet-optimized model or increase WASM memory limits." << std::endl;
                 llama_free_model(g_init_result.model);
                 g_init_result.model = nullptr;
                 return 0;

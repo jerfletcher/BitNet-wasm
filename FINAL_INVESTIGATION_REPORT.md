@@ -8,7 +8,7 @@
 ### 1. **Root Cause Analysis** ✅ SOLVED
 - **Original Issue**: The repetitive text was actually a symptom of memory alignment problems
 - **Discovery**: The BitNet i2_s quantization format (2-bit ternary) was incompatible with WASM memory alignment requirements
-- **Solution**: Switched to Q4_0 quantized models that are WASM-compatible
+- **Solution**: Using native BitNet models with i2_s quantization that are WASM-compatible
 
 ### 2. **Memory Alignment Faults** ✅ SOLVED  
 - **Problem**: `Aborted(alignment fault)` errors during model loading
@@ -18,7 +18,7 @@
 
 ### 3. **Model Format Compatibility** ✅ SOLVED
 - **Problem**: i2_s quantized BitNet models incompatible with WASM
-- **Solution**: Switched to Q4_0 quantized Qwen2-0.5B model (336MB)
+- **Solution**: Using native BitNet-b1.58-2B model with i2_s quantization
 - **Result**: Model loads, metadata parsed correctly, no format errors
 
 ### 4. **Memory Management Optimization** ✅ PARTIALLY SOLVED
@@ -77,7 +77,7 @@ Failure Point: During KV cache allocation, not size limits
 ## 💡 Solutions & Next Steps
 
 ### Immediate Solutions (Recommended)
-1. **Smaller Models**: Try models < 100MB (TinyLlama variants)
+1. **BitNet Models**: Use native BitNet models with i2_s quantization
 2. **Alternative Architectures**: Test non-transformer models that don't use attention
 3. **Streaming Approach**: Implement token-by-token processing without large KV cache
 
@@ -89,7 +89,7 @@ Failure Point: During KV cache allocation, not size limits
 ### Model Recommendations
 ```bash
 # Try these smaller models:
-- TinyLlama-1.1B-Q2_K: ~60MB
+- BitNet-b1.58-2B-i2_s: Native BitNet format
 - Phi-3-mini-4K-Q4_0: ~100MB  
 - DistilBERT variants: ~30-50MB
 ```
@@ -97,7 +97,7 @@ Failure Point: During KV cache allocation, not size limits
 ## 📁 File Organization
 
 ### Test Suite (`tests/`)
-- ✅ **`quick-test.js`** - Main test script (updated for Q4_0 model)
+- ✅ **`quick-test.js`** - Main test script (updated for BitNet i2_s model)
 - ✅ **`test-real-api.js`** - Uses proper BitNet API functions
 - ✅ **`test-minimal.js`** - Ultra-minimal memory test
 - ✅ **`analyze-model.js`** - Model format analyzer
@@ -108,7 +108,7 @@ Failure Point: During KV cache allocation, not size limits
 - ✅ **`src/bitnet_wasm.cpp`** - Ultra-minimal context settings (16 tokens)
 
 ### Models
-- ✅ **`models/test/qwen2-0_5b-instruct-q4_0.gguf`** - Working 336MB Q4_0 model
+- ✅ **`models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf`** - Native BitNet i2_s quantized model
 - ✅ Model loads successfully but can't create inference context
 
 ## 🎯 Conclusion

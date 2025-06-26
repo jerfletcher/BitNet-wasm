@@ -19,7 +19,7 @@ async function testMinimal() {
         
         // Try to load a minimal file to isolate the alignment issue
         const fs = require('fs');
-        const modelBuffer = fs.readFileSync('/Users/a206413899/development/BitNet-wasm/models/test/qwen2-0_5b-instruct-q4_0.gguf');
+        const modelBuffer = fs.readFileSync('/Users/a206413899/development/BitNet-wasm/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf');
         
         console.log(`📂 Model size: ${modelBuffer.length} bytes`);
         

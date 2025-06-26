@@ -1,7 +1,7 @@
 {
-  "model_path": "./models/test-model-q4_0.gguf",
-  "quantization": "Q4_0",
-  "context_size": 256,
-  "batch_size": 16,
-  "expected_alignment": "WASM compatible"
+  "model_path": "./models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf",
+  "quantization": "i2_s",
+  "context_size": 16,
+  "batch_size": 1,
+  "expected_alignment": "BitNet WASM compatible"
 }

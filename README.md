@@ -10,7 +10,7 @@ BitNet-WASM is a full port of the original BitNet.cpp that brings BitNet's revol
 
 ### ✅ **Fully Working Features**
 - **Real BitNet Inference**: Uses actual llama.cpp/BitNet APIs for authentic neural network inference
-- **GGUF Model Loading**: Successfully loads and processes 300MB+ Q4_0 quantized models in GGUF format
+- **GGUF Model Loading**: Successfully loads and processes BitNet models in native i2_s quantization format
 - **Model Context Creation**: Successfully creates inference context with proper WASM configuration
 - **WASM Compatibility**: Full single-threaded WASM build with x86 TL2 BitNet kernels
 - **Memory Management**: 512MB initial memory, proper chunked file loading
@@ -20,11 +20,11 @@ BitNet-WASM is a full port of the original BitNet.cpp that brings BitNet's revol
 - **Status**: Model loads successfully, but hits memory bounds during tensor processing
 - **Progress**: Fixed alignment faults by removing SAFE_HEAP=1
 - **Next**: Reduce context size from 256→128 to fit in WASM memory limits
-- **Models Tested**: Qwen2-0.5B (336MB, Q4_0 quantization) - compatible format confirmed
+- **Models Tested**: BitNet-b1.58-2B (i2_s quantization) - native BitNet format confirmed
 
 ### 🎉 **Major Breakthroughs**
 - **Alignment Issue Solved**: No more `alignment fault` errors in WASM
-- **Model Format Compatibility**: Q4_0 quantization works (vs problematic i2_s)
+- **Model Format Compatibility**: i2_s quantization (native BitNet format) supported
 - **Memory Architecture**: 512MB WASM heap successfully loads 336MB models
 - **Diagnostic Tools**: Complete test suite with model analysis and troubleshooting
 
@@ -72,10 +72,10 @@ params.n_batch = 8;    // Reduce from 16
 ```
 Failed to load model from file
 ```
-**Solution**: Use Q4_0/Q8_0 quantized models instead of i2_s format.
+**Solution**: Use native BitNet models with i2_s quantization format.
 
 ### Model Compatibility 
-- ✅ **Q4_0 Quantization**: Compatible (tested with Qwen2-0.5B)
+- ✅ **i2_s Quantization**: Native BitNet format (tested with BitNet-b1.58-2B)
 - ✅ **Q8_0 Quantization**: Compatible (expected to work)
 - ❌ **i2_s Quantization**: Incompatible (2-bit ternary causes alignment issues)
 

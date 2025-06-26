@@ -54,7 +54,7 @@ Download BitNet-compatible models in supported formats:
 For immediate testing and validation:
 
 ```bash
-# Qwen2-0.5B-Instruct in Q4_0 format (~350MB)
+# BitNet-b1.58-2B with i2_s quantization (native BitNet format)
 # Validates WASM implementation without large download
 ```
 

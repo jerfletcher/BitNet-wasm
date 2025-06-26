@@ -23,10 +23,11 @@ async function quickTest() {
         bitnet_init();
         console.log('✅ BitNet initialized');
         
-        // Load model
-        const modelPath = 'models/tiny/tinyllama-1.1b-chat-v1.0.q4_0.gguf';
+        // Load BitNet model
+        const modelPath = 'models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf';
         if (!fs.existsSync(modelPath)) {
-            console.log('❌ Model file not found:', modelPath);
+            console.log('❌ BitNet model file not found:', modelPath);
+            console.log('   Please ensure the BitNet-b1.58-2B model is downloaded to:', modelPath);
             return;
         }
         
