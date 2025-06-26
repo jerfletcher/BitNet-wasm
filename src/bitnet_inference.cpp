@@ -16,11 +16,15 @@
 #include "common.h"
 #include "sampling.h"
 #include "ggml-bitnet.h"
+#include "bitnet_inference.h"
 
 // Global state using real llama.cpp structures
 static struct common_init_result g_init_result = {};
 static struct common_sampler* g_sampler = nullptr;
 static bool g_initialized = false;
+
+// BitNet debug counter
+static int bitnet_ops_count = 0;
 
 extern "C" {
     // Initialize the BitNet-enhanced llama.cpp engine
@@ -28,6 +32,7 @@ extern "C" {
         if (g_initialized) return;
         
         std::cout << "[bitnet_init] Initializing BitNet-enhanced llama.cpp" << std::endl;
+        fflush(stdout);
         
         // Initialize BitNet extensions first
         ggml_bitnet_init();
@@ -279,6 +284,11 @@ extern "C" {
             std::cerr << "[bitnet_load_model] Exception: " << e.what() << std::endl;
             return 0;
         }
+    }
+    
+    // Simplified load model function that takes memory pointers using ccall
+    __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE int bitnet_load_model_from_memory(uintptr_t data_ptr, size_t size) {
+        return bitnet_load_model(reinterpret_cast<const uint8_t*>(data_ptr), size);
     }
     
     // Run inference using the real llama.cpp pipeline with BitNet
@@ -560,6 +570,17 @@ extern "C" {
         }
     }
     
+    // Simplified inference function that returns JSON result
+    __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE const char* bitnet_run_inference_simple(const char* input_text, int max_tokens) {
+        static char result_buffer[8192];
+        int output_len = bitnet_inference_run(input_text, result_buffer, sizeof(result_buffer) - 1);
+        if (output_len > 0) {
+            result_buffer[output_len] = '\0';
+            return result_buffer;
+        }
+        return "";
+    }
+    
     // Get model information
     __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE void bitnet_get_model_info(uint32_t* vocab_size, uint32_t* n_embd, uint32_t* n_layer) {
         if (g_init_result.model) {
@@ -574,6 +595,21 @@ extern "C" {
     }
     
     // Check if model is loaded
+    __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE int bitnet_get_vocab_size() {
+        if (!g_init_result.model) return 0;
+        return llama_n_vocab(g_init_result.model);
+    }
+    
+    __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE int bitnet_get_embedding_dim() {
+        if (!g_init_result.model) return 0;
+        return llama_n_embd(g_init_result.model);
+    }
+    
+    __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE int bitnet_get_num_layers() {
+        if (!g_init_result.model) return 0;
+        return llama_n_layer(g_init_result.model);
+    }
+    
     __attribute__((visibility("default"))) EMSCRIPTEN_KEEPALIVE int bitnet_is_model_loaded() {
         return (g_init_result.model && g_init_result.context && g_sampler) ? 1 : 0;
     }
@@ -613,14 +649,17 @@ extern "C" {
             g_initialized = false;
         }
     }
+    
+    int bitnet_get_ops_count() {
+        return bitnet_ops_count;
+    }
+    
+    void bitnet_reset_ops_count() {
+        bitnet_ops_count = 0;
+    }
 }
 
 #ifdef __EMSCRIPTEN__
-// Emscripten bindings for JavaScript
-EMSCRIPTEN_BINDINGS(bitnet) {
-    emscripten::function("bitnet_init", &bitnet_init);
-    emscripten::function("bitnet_is_model_loaded", &bitnet_is_model_loaded);
-    emscripten::function("bitnet_free_model", &bitnet_free_model);
-    emscripten::function("bitnet_cleanup", &bitnet_cleanup);
-}
+// Keep the C functions available via ccall/cwrap
+// No explicit EMSCRIPTEN_BINDINGS needed - use ccall/cwrap from JavaScript
 #endif

@@ -4,7 +4,6 @@
 // Import BitNet-WASM module from CDN (for GitHub Pages demo)
 // In your own project, you would use a relative path like './bitnet.js'
 import BitNetModule from 'https://cdn.jsdelivr.net/gh/jerfletcher/BitNet-wasm@latest/bitnet.js';
-//import BitNetModule from '../../bitnet.js';
 // Global variables
 let bitnet = null;
 let modelData = null;

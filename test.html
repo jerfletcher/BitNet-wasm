@@ -210,14 +210,15 @@
                 logMessage('model-log', `Loading ${useRealModel ? 'real' : 'mock'} model...`);
                 
                 let modelData;
+                let actuallyUseRealModel = useRealModel;
                 
-                if (useRealModel) {
+                if (actuallyUseRealModel) {
                     // Load the actual GGUF model from the models directory
                     logMessage('model-log', 'Fetching real model file (1.2GB)...');
                     logMessage('model-log', 'This may take a while depending on your connection...');
                     
                     try {
-                        const response = await fetch('./models/ggml-model-i2_s.gguf');
+                        const response = await fetch('./models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf');
                         if (!response.ok) {
                             throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
                         }
@@ -236,11 +237,11 @@
                     } catch (fetchError) {
                         logMessage('model-log', `Failed to load real model: ${fetchError.message}`);
                         logMessage('model-log', 'Falling back to mock model...');
-                        useRealModel = false;
+                        actuallyUseRealModel = false;
                     }
                 }
                 
-                if (!useRealModel) {
+                if (!actuallyUseRealModel) {
                     // Create a minimal GGUF file structure for testing
                     logMessage('model-log', 'Creating mock GGUF model data...');
                     modelData = new Uint8Array(1024);

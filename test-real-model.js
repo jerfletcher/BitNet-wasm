@@ -45,7 +45,7 @@ class RealModelTester {
 
         // Model info endpoint
         this.app.get('/api/model-info', (req, res) => {
-            const modelPath = path.join(__dirname, 'models', 'ggml-model-i2_s.gguf');
+            const modelPath = path.join(__dirname, 'models', 'BitNet-b1.58-2B-4T', 'ggml-model-i2_s.gguf');
             
             if (fs.existsSync(modelPath)) {
                 const stats = fs.statSync(modelPath);
@@ -54,7 +54,7 @@ class RealModelTester {
                     size: stats.size,
                     sizeGB: (stats.size / 1024 / 1024 / 1024).toFixed(2),
                     modified: stats.mtime,
-                    path: 'models/ggml-model-i2_s.gguf'
+                    path: 'models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf'
                 });
             } else {
                 res.json({ exists: false });
@@ -109,7 +109,7 @@ class RealModelTester {
             'bitnet.wasm': path.join(__dirname, 'bitnet.wasm'),
             'bitnet.js': path.join(__dirname, 'bitnet.js'),
             'test.html': path.join(__dirname, 'test.html'),
-            'model': path.join(__dirname, 'models', 'ggml-model-i2_s.gguf')
+            'model': path.join(__dirname, 'models', 'BitNet-b1.58-2B-4T', 'ggml-model-i2_s.gguf')
         };
 
         for (const [name, filePath] of Object.entries(files)) {
